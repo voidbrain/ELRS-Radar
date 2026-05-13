@@ -8,8 +8,6 @@ const droneLatEl = document.getElementById("droneLat");
 const droneLngEl = document.getElementById("droneLng");
 const controllerLatEl = document.getElementById("controllerLat");
 const controllerLngEl = document.getElementById("controllerLng");
-const expandEl = document.getElementById("expandEl");
-const infopanel = document.getElementById("infoPanel");
 const versionEl = document.getElementById("version");
 const enableCompassBtn = document.getElementById("enableCompass");
 
@@ -23,7 +21,7 @@ let lastDroneUpdate = 0;
 let myPos = {
   lat: null,
   lng: null,
-  heading: null,
+  heading: 0,
 };
 
 let dronePos = {
@@ -113,10 +111,6 @@ document
   .getElementById("enableCompass")
   .addEventListener("click", startCompass);
 
-document.getElementById("expandEl").addEventListener("click", () => {
-  infopanel.classList.toggle("hidden");
-});
-
 function startCompass() {
   console.log("Enabling compass...");
   if (compassEnabled) return;
@@ -126,8 +120,11 @@ function startCompass() {
     feedbackEl.innerText = "";
   }, 2000);
 
-  window.addEventListener("deviceorientationabsolute", onCompass, true);
-  window.addEventListener("deviceorientation", onCompass, true);
+  if ("ondeviceorientationabsolute" in window) {
+    window.addEventListener("deviceorientationabsolute", onCompass, true);
+  } else {
+    window.addEventListener("deviceorientation", onCompass, true);
+  }
 
   enableCompassBtn.style.display = "none";
 
@@ -206,6 +203,7 @@ function decodeCRSF(buf) {
       const lng = lngRaw / 1e7;
 
       // sanity filter
+      // TODO: refactor to a proper JSON decode
       if (lat > 40 && lat < 50 && lng > 10 && lng < 15) {
         dronePos.lat = lat;
         dronePos.lng = lng;
@@ -274,10 +272,10 @@ function decodeGPS(buf) {
 
 function updateCalculations() {
   if (
-    myPos.lat &&
-    myPos.lng &&
-    dronePos.lat &&
-    dronePos.lng &&
+    myPos.lat != null &&
+    myPos.lng != null &&
+    dronePos.lat != null &&
+    dronePos.lng != null && 
     isFinite(myPos.lat) &&
     isFinite(myPos.lng) &&
     isFinite(dronePos.lat) &&
@@ -301,8 +299,6 @@ function updateCalculations() {
     distEl.innerText = "No Drone";
     bearingEl.innerText = "--";
   }
-
-  render();
 }
 
 /* =========================
@@ -312,7 +308,7 @@ function updateCalculations() {
 function render() {
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
-  const radius = canvas.width / 2 - 5;
+  const radius = Math.min(canvas.width, canvas.height) / 2 - 5;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -456,7 +452,7 @@ function render() {
 
     ctx.beginPath();
     // ctx.strokeStyle = "#AB1C1C";
-    ctx.strokeStyle = `rgba(${rgb}, )`;
+    ctx.strokeStyle = `rgba(${wedge}, 0.5)`;
     ctx.lineWidth = 3;
 
     ctx.moveTo(0, 0);
@@ -467,7 +463,7 @@ function render() {
     // DOT
     // =========================
     ctx.beginPath();
-    ctx.fillStyle = `rgba(${wedge},0.8)`;
+    ctx.fillStyle = `rgba(${wedge}, 0.8)`;
     ctx.arc(x, y, 6, 0, Math.PI * 2);
     ctx.fill();
 
@@ -513,6 +509,12 @@ function bear(a, b, c, d) {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
-render();
 setInterval(updateDroneAgeUI, 200);
 versionEl.innerText = "v1.0.0";
+
+function loop() {
+  render();
+  requestAnimationFrame(loop);
+}
+
+loop();

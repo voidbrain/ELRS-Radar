@@ -1,6 +1,6 @@
 const bridge = new WebSocket("ws://localhost:8766");
 
-const map = L.map("map").setView([45.5265723,12.1322606], 22);
+const map = L.map("map").setView([45.5265723,12.1322606], 20);
 
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
