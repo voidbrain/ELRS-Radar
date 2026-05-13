@@ -11,7 +11,6 @@ const controllerLngEl = document.getElementById("controllerLng");
 const expandEl = document.getElementById("expandEl");
 const infopanel = document.getElementById("infoPanel");
 const versionEl = document.getElementById("version");
-const debugBody = document.getElementById("debugBody");
 const enableCompassBtn = document.getElementById("enableCompass");
 
 const styles = getComputedStyle(document.documentElement);
@@ -263,7 +262,6 @@ function decodeGPS(buf) {
     if (view.byteLength >= 12) {
       dronePos.sats = view.getUint8(11);
     }
-    console.log(dronePos);
     updateCalculations();
   } catch (e) {
     console.log("GPS decode error:", e.message);
@@ -275,10 +273,6 @@ function decodeGPS(buf) {
 ========================= */
 
 function updateCalculations() {
-  console.log("Updating calculations with:", {
-    myPos,
-    dronePos,
-  });
   if (
     myPos.lat &&
     myPos.lng &&
@@ -292,33 +286,6 @@ function updateCalculations() {
     distance = hav(myPos.lat, myPos.lng, dronePos.lat, dronePos.lng);
 
     bearing = bear(myPos.lat, myPos.lng, dronePos.lat, dronePos.lng);
-
-    console.log({
-      "My Position": myPos,
-      "Drone Position": dronePos,
-      distance: distance,
-      bearing: bearing,
-      rel: ((bearing - myPos.heading + 540) % 360) - 180,
-    });
-
-    if (debugBody) {
-      const row = document.createElement("tr");
-      const myPosStr = myPos.lat
-        ? `${myPos.lat.toFixed(5)}, ${myPos.lng.toFixed(5)}`
-        : "--";
-      const dronePosStr = dronePos.lat
-        ? `${dronePos.lat.toFixed(5)}, ${dronePos.lng.toFixed(5)}`
-        : "--";
-
-      row.innerHTML = `
-         <td>${myPosStr}</td>
-         <td>${dronePosStr}</td>
-         <td>${Math.round(distance)} m</td>
-         <td>${Math.round(bearing)}°</td>
-         <td>${Math.round(((bearing - myPos.heading + 540) % 360) - 180)}°</td>
-       `;
-      debugBody.appendChild(row);
-    }
 
     let diff = ((Math.round(bearing) - myPos.heading + 540) % 360) - 180;
 

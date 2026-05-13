@@ -35,7 +35,7 @@ body {
   height: 100vh;
   touch-action: manipulation;
   overscroll-behavior: none;
-  /* overflow: hidden; */ 
+  overflow: hidden;
   padding: 1vh 2vw 0;
 }
 
