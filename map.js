@@ -1,22 +1,23 @@
 const bridge = new WebSocket("ws://localhost:8766");
 
-const map = L.map("map").setView([45.4642, 9.19], 16);
+const map = L.map("map").setView([45.5265723,12.1322606], 22);
 
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-  attribution: "© OpenStreetMap",
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 24,         // Allows the map view to go up to zoom level 22
+    maxNativeZoom: 19    // Tells Leaflet that OSM tiles stop existing after level 19
 }).addTo(map);
 
 let myHeading = 0;
 
 const myPos = {
-  lat: 45.4642,
-  lng: 9.19,
+  lat: 45.5265723,
+  lng: 12.132260,
 };
 
 const dronePos = {
-  lat: 45.465,
-  lng: 9.191,
+  lat: 45.5265723,
+  lng: 12.1322606,
 };
 
 const meIcon = L.divIcon({
