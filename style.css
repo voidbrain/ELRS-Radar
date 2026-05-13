@@ -1,0 +1,115 @@
+:root {
+  --background: rgb(245, 245, 245);
+  --color: rgb(34, 34, 34);
+  --gradedBackground: rgb(224, 224, 224);
+  --accent: rgb(255, 59, 48);
+  --active: rgb(68, 68, 68);
+
+  --radar-line:0, 0, 0;
+  --radar-wedge: 171, 28, 28;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: rgb(34, 34, 34);
+    --color: rgb(245, 245, 245);
+    --gradedBackground: rgb(63, 63, 63);
+    --accent: rgb(255, 59, 48);
+    --active: rgb(68, 68, 68);
+
+    --radar-line:255, 255, 255;
+    --radar-wedge: 28, 171, 69;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--color);
+  text-align: center;
+  font-family: monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 98vw;
+  height: 100vh;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  /* overflow: hidden; */ 
+  padding: 1vh 2vw 0;
+}
+
+#radarContainer {
+  position: relative;
+  width: 98vw;
+  max-width: 420px;
+}
+
+canvas {
+  display: block;
+  width: 96vw;
+  height: 96vw;
+  max-width: 420px;
+  max-height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--gradedBackground) 0%, var(--background) 70%);
+  border: 2px solid var(--background);
+  box-sizing: border-box;
+}
+
+.info-panel {
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+#expandEl {
+  width: 90vw;
+  text-align: right;
+  cursor: pointer;
+
+}
+
+.icon {
+  color: var(--accent);
+}
+
+.hidden {
+  display: none;
+}
+
+.controls {
+  margin-top: 6px;
+}
+
+button {
+  margin: 4px;
+  padding: 8px 12px;
+  background: var(--background);
+  color: var(--color);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+button:active {
+  background: var(--active);
+}
+
+#feedbackEl {
+  height: 20px;
+  font-size: 14px;
+}
+
+table {
+  margin: 10px auto;
+  border-collapse: collapse;
+  th, td {
+    padding: 4px 8px;
+    border: 1px dashed var(--color);
+    background-color: var(--background);
+    
+  }
+}

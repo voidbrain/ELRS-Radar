@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ELRS Radar</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="dark">
+    <div id="radarContainer">
+      <canvas id="radarCanvas" width="400" height="400"></canvas>
+    </div>
+
+    <div>
+      <p>
+        <span class="icon" >📏</span> <span id="dist">-- m</span> || <span class="icon" >📐</span> <span id="bearingDisplay">-- °</span>
+      </p>
+    </div>
+    <div id="expandEl">+</div>
+    <div id="infoPanel" class="hidden"></div>
+
+    <div id="debug" style="margin-top: 20px; font-family: monospace; font-size: 12px;">
+      <table border="1" style="width: 100%; border-collapse: collapse;">
+        <thead style="background-color: #eee;">
+          <tr>
+            <th>My Pos</th>
+            <th>Drone Pos</th>
+            <th>Dist</th>
+            <th>Bear</th>
+            <th>Rel</th>
+          </tr>
+        </thead>
+        <tbody id="debugBody">
+          <!-- New rows will be appended here -->
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <table border="1" style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr>
+            <th style="text-align: right;"></th>
+            <th>Drone</th>
+            <th>Controller</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>Lat</th>
+            <td><span id="droneLat">--</span></td>
+            <td><span id="controllerLat">--</span></td>
+          </tr>
+          <tr>
+            <th>Lon</th>
+            <td><span id="droneLng">--</span></td>
+            <td><span id="controllerLng">--</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top: 10px;">
+      Last view: <span id="lastDroneUpdate">--</span>
+    </div>
+    <div style="margin-top: 5px;">
+      V.: <span id="version">--</span>
+    </div>
+
+    <div class="controls">
+      <div id="feedbackEl"></div>
+      <button id="enableCompass">Enable Compass</button>
+    </div>
+
+    <script src="radar.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", async () => {
+          try {
+            await navigator.serviceWorker.register("/sw.js");
+            console.log("SW registered");
+          } catch (e) {
+            console.error(e);
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

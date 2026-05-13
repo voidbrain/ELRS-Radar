@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Map Debug</title>
+
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet/dist/leaflet.css"
+    />
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: sans-serif;
+      }
+
+      #map {
+        width: 100%;
+        height: 70%;
+      }
+
+      #controls {
+        padding: 12px;
+        background: #111;
+        color: white;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+
+      td,
+      th {
+        border: 1px solid #444;
+        padding: 4px;
+        font-size: 12px;
+      }
+
+      input[type='range'] {
+        width: 300px;
+      }
+
+      .me-icon {
+        width: 24px;
+        height: 24px;
+        background: #00ff00;
+        clip-path: polygon(50% 0%, 100% 100%, 50% 75%, 0% 100%);
+      }
+
+      .drone-icon {
+        width: 18px;
+        height: 18px;
+        background: red;
+        border-radius: 50%;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="map"></div>
+
+    <div id="controls">
+      <div>
+        Facing:
+        <input id="headingSlider" type="range" min="0" max="360" value="0" />
+        <span id="headingValue">0°</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>My Pos</th>
+            <th>Drone Pos</th>
+            <th>Dist</th>
+            <th>Bear</th>
+            <th>Rel</th>
+          </tr>
+        </thead>
+        <tbody id="debugTable"></tbody>
+      </table>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script type="module" src="./map.js"></script>
+  </body>
+</html>
