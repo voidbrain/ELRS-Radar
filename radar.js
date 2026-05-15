@@ -1,3 +1,4 @@
+// radar.js 
 const canvas = document.getElementById("radarCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -39,24 +40,82 @@ let bearing = 0;
 const ws = new WebSocket("ws://localhost:8766");
 ws.binaryType = "arraybuffer";
 
+// ws.onmessage = (e) => {
+//   if (typeof e.data === "string") {
+//     try {
+//       // Handle JSON test messages
+//       const data = JSON.parse(e.data);
+//       myPos.lat = data.me.lat;
+//       myPos.lng = data.me.lng;
+//       myPos.heading = data.me.heading;
+//       dronePos.lat = data.drone.lat;
+//       dronePos.lng = data.drone.lng;
+
+//       updateCalculations();
+//     } catch (err) {
+//       console.error("Invalid JSON message:", err.message);
+//     }
+//   } else if (e.data instanceof ArrayBuffer) {
+//     const bytes = new Uint8Array(e.data);
+//     parseCRSF(bytes);
+//   }
+// };
+
 ws.onmessage = (e) => {
-  if (typeof e.data === "string") {
-    try {
-      // Handle JSON test messages
-      const data = JSON.parse(e.data);
-      myPos.lat = data.me.lat;
-      myPos.lng = data.me.lng;
-      myPos.heading = data.me.heading;
-      dronePos.lat = data.drone.lat;
-      dronePos.lng = data.drone.lng;
+  try {
+    const data = JSON.parse(e.data);
+    console.log(data)
+    // ------------------------
+    // STATE SYNC
+    // ------------------------
+    if (data.type === "state") {
+      if (data.me) {
+        myPos.lat = data.me.lat;
+        myPos.lng = data.me.lng;
+
+        if (typeof data.me.heading === "number") {
+          myPos.heading = data.me.heading;
+        }
+      }
+
+      if (data.drone) {
+        dronePos.lat = data.drone.lat;
+        dronePos.lng = data.drone.lng;
+      }
 
       updateCalculations();
-    } catch (err) {
-      console.error("Invalid JSON message:", err.message);
+      return;
     }
-  } else if (e.data instanceof ArrayBuffer) {
-    const bytes = new Uint8Array(e.data);
-    parseCRSF(bytes);
+
+    // ------------------------
+    // BACKPACK GPS
+    // ------------------------
+    if (data.type === "backpack") {
+      if (
+        typeof data.lat === "number" &&
+        typeof data.lng === "number"
+      ) {
+        dronePos.lat = data.lat;
+        dronePos.lng = data.lng;
+
+        droneLatEl.innerText = data.lat.toFixed(7);
+        droneLngEl.innerText = data.lng.toFixed(7);
+
+        if (typeof data.alt === "number") {
+          dronePos.altitude = data.alt;
+        }
+
+        lastDroneUpdate = Date.now();
+
+        console.log("✔ BACKPACK GPS:", data.lat, data.lng);
+
+        updateCalculations();
+      }
+
+      return;
+    }
+  } catch (err) {
+    console.error("WS parse error:", err.message);
   }
 };
 

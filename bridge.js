@@ -1,3 +1,4 @@
+// bridge.js
 const dgram = require("dgram");
 const WebSocket = require("ws");
 const http = require("http");
@@ -73,18 +74,60 @@ wss.on("connection", (ws) => {
 });
 
 // ------------------------
+// BACKPACK DECODER (NEW)
+// -------------------------
+// This parses the raw UDP payload looking for a JSON-encoded GPS structure.
+// This replaces the sliding window byte search with a proper structured lookup.
+function tryParseBackpack(msg) {
+  try {
+    const text = msg.toString("utf8");
+
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+
+    if (start === -1 || end === -1) {
+      return null;
+    }
+
+    const json = text.slice(start, end + 1);
+
+    const data = JSON.parse(json);
+
+    if (
+      data &&
+      data.type === "gps" &&
+      typeof data.lat === "number" &&
+      typeof data.lng === "number"
+    ) {
+      return data;
+    }
+  } catch (e) {}
+
+  return null;
+}
+
+// ------------------------
 // UDP INPUT (ELRS / telemetry)
 // ------------------------
 udp.on("message", (msg) => {
-  // convert binary → safe JSON
-  const packet = {
-    type: "udp",
-    raw: msg.toString("hex"),
-    length: msg.length,
-    timestamp: Date.now(),
-  };
-
-  const payload = JSON.stringify(packet);
+  // 1. Try to decode if it's a structured backpack JSON
+  const backpack = tryParseBackpack(msg);
+  
+  let payload;
+  if (backpack) {
+    // If it's a backpack, we send the parsed version directly
+    payload = JSON.stringify({ type: "backpack", ...backpack, timestamp: Date.now() });
+    console.log("structured", msg, backpack)
+  } else {
+    // 2. Fallback to raw binary hex encoding
+    payload = JSON.stringify({
+      type: "udp",
+      raw: msg.toString("hex"),
+      length: msg.length,
+      timestamp: Date.now(),
+    });
+    console.log("raw", msg, msg.toString("hex"))
+  }
 
   for (const ws of clients) {
     if (ws.readyState === WebSocket.OPEN) {
