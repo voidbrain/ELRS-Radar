@@ -1,4 +1,4 @@
-// radar.js 
+// radar.js
 const canvas = document.getElementById("radarCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -40,31 +40,10 @@ let bearing = 0;
 const ws = new WebSocket("ws://localhost:8766");
 ws.binaryType = "arraybuffer";
 
-// ws.onmessage = (e) => {
-//   if (typeof e.data === "string") {
-//     try {
-//       // Handle JSON test messages
-//       const data = JSON.parse(e.data);
-//       myPos.lat = data.me.lat;
-//       myPos.lng = data.me.lng;
-//       myPos.heading = data.me.heading;
-//       dronePos.lat = data.drone.lat;
-//       dronePos.lng = data.drone.lng;
-
-//       updateCalculations();
-//     } catch (err) {
-//       console.error("Invalid JSON message:", err.message);
-//     }
-//   } else if (e.data instanceof ArrayBuffer) {
-//     const bytes = new Uint8Array(e.data);
-//     parseCRSF(bytes);
-//   }
-// };
-
 ws.onmessage = (e) => {
   try {
     const data = JSON.parse(e.data);
-    console.log(data)
+    console.log(data);
     // ------------------------
     // STATE SYNC
     // ------------------------
@@ -90,16 +69,16 @@ ws.onmessage = (e) => {
     // ------------------------
     // BACKPACK GPS
     // ------------------------
-    if (data.type === "backpack") {
+    if (data.type === "telemetry") {
       if (
-        typeof data.lat === "number" &&
-        typeof data.lng === "number"
+        typeof data.gps.lat === "number" &&
+        typeof data.gps.lng === "number"
       ) {
-        dronePos.lat = data.lat;
-        dronePos.lng = data.lng;
+        dronePos.lat = data.gps.lat;
+        dronePos.lng = data.gps.lng;
 
-        droneLatEl.innerText = data.lat.toFixed(7);
-        droneLngEl.innerText = data.lng.toFixed(7);
+        droneLatEl.innerText = data.gps.lat.toFixed(7);
+        droneLngEl.innerText = data.gps.lng.toFixed(7);
 
         if (typeof data.alt === "number") {
           dronePos.altitude = data.alt;
@@ -107,7 +86,7 @@ ws.onmessage = (e) => {
 
         lastDroneUpdate = Date.now();
 
-        console.log("✔ BACKPACK GPS:", data.lat, data.lng);
+        console.log("✔ BACKPACK GPS:", data.gps.lat, data.gps.lng);
 
         updateCalculations();
       }
@@ -206,22 +185,6 @@ function onCompass(e) {
   updateCalculations();
 }
 
-/* =========================
-  CRSF ENTRY POINT
-========================= */
-
-function parseCRSF(bytes) {
-  if (
-    bytes.length < 5 ||
-    bytes[0] !== 0x24 || // $
-    bytes[1] !== 0x58 || // X
-    bytes[2] !== 0x3c // <
-  ) {
-    return;
-  }
-  decodeCRSF(bytes.slice(3));
-}
-
 function updateDroneAgeUI() {
   if (!lastDroneUpdate) {
     document.getElementById("lastDroneUpdate").innerText = "--";
@@ -240,91 +203,6 @@ function updateDroneAgeUI() {
   document.getElementById("lastDroneUpdate").innerText = text;
 }
 
-function decodeCRSF(buf) {
-  // must contain backpack header
-  if (buf.length < 20 || buf[0] !== 0x00) {
-    return;
-  }
-
-  // find best-aligned GPS window
-  for (let i = 0; i < buf.length - 12; i++) {
-    const view = new DataView(
-      buf.buffer,
-      buf.byteOffset + i,
-      buf.byteLength - i,
-    );
-
-    try {
-      const latRaw = view.getInt32(0, false);
-      const lngRaw = view.getInt32(4, false);
-
-      const lat = latRaw / 1e7;
-      const lng = lngRaw / 1e7;
-
-      // sanity filter
-      // TODO: refactor to a proper JSON decode
-      if (lat > 40 && lat < 50 && lng > 10 && lng < 15) {
-        dronePos.lat = lat;
-        dronePos.lng = lng;
-        droneLatEl.innerText = lat.toFixed(7);
-        droneLngEl.innerText = lng.toFixed(7);
-        lastDroneUpdate = Date.now();
-
-        // optional altitude (if exists)
-        if (view.byteLength > 10) {
-          dronePos.altitude = view.getInt16(8, false);
-        }
-
-        console.log("✔ GPS LOCK:", lat, lng);
-
-        updateCalculations();
-        return;
-      }
-    } catch (e) {}
-  }
-}
-
-/* =========================
-  GPS DECODER (SAFE)
-========================= */
-
-function decodeGPS(buf) {
-  try {
-    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-
-    if (view.byteLength < 10) return;
-
-    const latRaw = view.getInt32(3, false);
-    const lngRaw = view.getInt32(7, false);
-
-    const lat = latRaw / 1e7;
-    const lng = lngRaw / 1e7;
-
-    if (
-      !isFinite(lat) ||
-      !isFinite(lng) ||
-      Math.abs(lat) > 90 ||
-      Math.abs(lng) > 180
-    ) {
-      return;
-    }
-
-    dronePos.lat = lat;
-    dronePos.lng = lng;
-    droneLatEl.innerText = lat.toFixed(7);
-    droneLngEl.innerText = lng.toFixed(7);
-    lastDroneUpdate = Date.now();
-
-    // optional extra fields (only if present)
-    if (view.byteLength >= 12) {
-      dronePos.sats = view.getUint8(11);
-    }
-    updateCalculations();
-  } catch (e) {
-    console.log("GPS decode error:", e.message);
-  }
-}
-
 /* =========================
    CALCULATIONS
 ========================= */
@@ -334,7 +212,7 @@ function updateCalculations() {
     myPos.lat != null &&
     myPos.lng != null &&
     dronePos.lat != null &&
-    dronePos.lng != null && 
+    dronePos.lng != null &&
     isFinite(myPos.lat) &&
     isFinite(myPos.lng) &&
     isFinite(dronePos.lat) &&
@@ -398,7 +276,7 @@ function render() {
   ctx.translate(cx, cy);
   ctx.rotate((-myPos.heading * Math.PI) / 180);
 
-/* =========================
+  /* =========================
     CARDINAL LABELS
 ========================= */
 
@@ -436,7 +314,7 @@ function render() {
     ctx.restore();
   }
 
-/* =========================
+  /* =========================
     TICKS (5° + 30° emphasis)
 ========================= */
 
@@ -569,7 +447,7 @@ function bear(a, b, c, d) {
 }
 
 setInterval(updateDroneAgeUI, 200);
-versionEl.innerText = "v1.0.0";
+versionEl.innerText = "v1.1.0";
 
 function loop() {
   render();
