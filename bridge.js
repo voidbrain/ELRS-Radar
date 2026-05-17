@@ -116,43 +116,79 @@ function decodeMSPGPS(msg) {
     if (syncIdx === -1) return null;
 
     const byteOffset = syncIdx / 2;
-    if (msg.length < byteOffset + 8) return null;
-
     const functionId = msg.readUInt16LE(byteOffset + 4);
     const payloadLen = msg.readUInt16LE(byteOffset + 6);
     const payloadStart = byteOffset + 8;
 
-    if (msg.length < payloadStart + payloadLen) return null;
+    if (functionId !== 17) return null;
 
-    // Target the 19-byte telemetry payload packed inside Command 17
-    if (functionId === 17 && payloadLen === 19) {
-      const subCommand = msg.readUInt8(payloadStart + 1);
+    // --- CASE A: 28-Byte GPS Packet Frame ---
+    if (payloadLen === 19 && msg.readUInt8(payloadStart + 1) === 0x11) {
+      const lat = msg.readInt32BE(payloadStart + 3) / 1e7;
+      const lng = msg.readInt32BE(payloadStart + 7) / 1e7;
+      const altitudeRaw = msg.readUInt16BE(payloadStart + 15);
+      const sats = msg.readUInt8(payloadStart + 17);
+      const altitude = altitudeRaw > 1000 ? altitudeRaw - 1000 : altitudeRaw;
 
-      // 0x11 explicitly flags a telemetry GPS block frame
-      if (subCommand === 0x11) {
-        // Read spatial metrics sequentially using Big-Endian (BE) notation
-        const lat = msg.readInt32BE(payloadStart + 3) / 1e7;
-        const lng = msg.readInt32BE(payloadStart + 7) / 1e7;
-        
-        const altitudeRaw = msg.readUInt16BE(payloadStart + 15);
-        const sats = msg.readUInt8(payloadStart + 17);
-        
-        // Handle CRSF standard 1000m offset scale shift parameters
-        const altitude = altitudeRaw > 1000 ? altitudeRaw - 1000 : altitudeRaw;
-
-        if (!isValidGPS(lat, lng)) return null;
-
+      if (isValidGPS(lat, lng)) {
         return {
           protocol: "msp-elrs-backpack-gps",
+          type: "gps",
           lat,
           lng,
           altitude: altitude >= 0 ? altitude : 0,
-          sats: sats || 11
+          sats: sats || 0
         };
       }
     }
+
+    // --- CASE B: 23-Byte Link Status Frame ---
+    if (payloadLen === 14 && msg.readUInt8(payloadStart + 1) === 0x0C) {
+      const rxRSSI = msg.readInt8(payloadStart + 3); // Uplink dBm
+      const txRSSI = msg.readInt8(payloadStart + 4); // Downlink dBm
+      const linkQuality = msg.readUInt8(payloadStart + 5); // LQ %
+
+      return {
+        protocol: "node-elrs-link-metrics",
+        type: "link",
+        rxRSSI,
+        txRSSI,
+        linkQuality
+      };
+    }
+
+    // --- CASE C: 19-Byte Flight Controller Status / Mode Frame ---
+    if (payloadLen === 10 && msg.readUInt8(payloadStart + 2) === 0x1E) {
+      // Extract the raw status text bytes from the remainder of the payload frame
+      // This strips away the ea 08 1e headers to read the status characters
+      const statusText = msg.toString("utf8", payloadStart + 3, payloadStart + 10).replace(/\0/g, "").trim();
+
+      return {
+        protocol: "node-elrs-fc-status",
+        type: "status",
+        flightMode: statusText || "ACRO" // Fallback definition placeholder
+      };
+    }
+
+    // --- CASE D: 21-Byte Battery Sensor Frame ---
+    if (payloadLen === 12 && msg.readUInt8(payloadStart + 2) === 0x08) {
+      // Read fields natively as Big Endian per standard CRSF specifications
+      const rawVoltage = msg.readUInt16BE(payloadStart + 3); 
+      const rawCurrent = msg.readUInt16BE(payloadStart + 5);
+      const capacity = (msg.readUInt8(payloadStart + 7) << 16) | msg.readUInt16BE(payloadStart + 8);
+      const remainingPct = msg.readUInt8(payloadStart + 10);
+
+      return {
+        protocol: "node-elrs-battery-sensor",
+        type: "battery",
+        vbat: rawVoltage / 10, // CRSF sends battery data scaled in 0.1V units
+        current: rawCurrent / 10, // scaled in 0.1A units
+        mah: capacity,
+        batteryPercent: remainingPct
+      };
+    }
   } catch (e) {
-    // Suppress packet format runtime crashes
+    // Suppress glitches
   }
   return null;
 }
@@ -164,10 +200,10 @@ function decodeMSPGPS(msg) {
 function processPacket(msg, rinfo = {}) {
   const telemetry = decodeMSPGPS(msg);
 
-  // logPacket(msg, {
-  //   MSPGPS: telemetry,
-  //   from: `${rinfo.address || "replay"}:${rinfo.port || 0}`
-  // });
+  logPacket(msg, {
+    MSPGPS: telemetry,
+    from: `${rinfo.address || "replay"}:${rinfo.port || 0}`
+  });
 
   if (!telemetry) return;
 
