@@ -2,16 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ELRS Radar</title>
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#000000" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body class="dark">
@@ -19,13 +15,17 @@
       <canvas id="radarCanvas" width="400" height="400"></canvas>
     </div>
 
-    <div>
-      <p>
-        <span class="icon" >📏</span> <span id="dist">-- m</span> || <span class="icon" >📐</span> <span id="bearingDisplay">-- °</span>
-      </p>
+    <div class="controls">
+      <div id="feedbackEl"></div>
+      <button id="enableCompass">Enable Compass</button>
+    </div>
+
+    <div class="metrics-summary">
+      <span class="icon">📏</span> <span id="dist">No Drone</span> || 
+      <span class="icon">📐</span> <span id="bearingDisplay">--</span>
     </div>
     
-    <div style="margin-top: 20px;">
+    <div class="telemetry-table">
       <table border="1" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr>
@@ -37,31 +37,29 @@
         <tbody>
           <tr>
             <th>Lat</th>
-            <td><span id="droneLat">--</span></td>
-            <td><span id="controllerLat">--</span></td>
+            <td><span id="droneLat">-</span></td>
+            <td><span id="controllerLat">-</span></td>
           </tr>
           <tr>
             <th>Lon</th>
-            <td><span id="droneLng">--</span></td>
-            <td><span id="controllerLng">--</span></td>
+            <td><span id="droneLng">-</span></td>
+            <td><span id="controllerLng">-</span></td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div style="margin-top: 10px;">
-      Last view: <span id="lastDroneUpdate">--</span>
+    <div class="diagnostics" style="margin-top: 10px;">
+      Last view: <span id="lastDroneUpdate">--</span> | 
+      <span id="compassRateDisplay">Compass Delta: --</span>
+      <div id="feedbackElBottom"></div>
     </div>
+    
     <div style="margin-top: 5px;">
       <span id="version">--</span>
     </div>
 
-    <div class="controls">
-      <div id="feedbackEl"></div>
-      <button id="enableCompass">Enable Compass</button>
-    </div>
-
-    <script src="radar.js"></script>
+    <script type="module" src="radar.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {

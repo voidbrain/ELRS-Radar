@@ -1,96 +1,64 @@
 // radar.js
-const canvas = document.getElementById("radarCanvas");
-const ctx = canvas.getContext("2d");
+import { hav, bear } from "./math.js";
+import { RadarRenderer } from "./renderer.js";
 
-const distEl = document.getElementById("dist");
-const bearingEl = document.getElementById("bearingDisplay");
-const feedbackEl = document.getElementById("feedbackEl");
-const droneLatEl = document.getElementById("droneLat");
-const droneLngEl = document.getElementById("droneLng");
-const controllerLatEl = document.getElementById("controllerLat");
-const controllerLngEl = document.getElementById("controllerLng");
-const versionEl = document.getElementById("version");
+const canvas = document.getElementById("radarCanvas");
 const enableCompassBtn = document.getElementById("enableCompass");
 
 const styles = getComputedStyle(document.documentElement);
-const rgb = styles.getPropertyValue("--radar-line");
-const wedge = styles.getPropertyValue("--radar-wedge");
+const rgb = styles.getPropertyValue("--radar-line").trim() || "0, 255, 0";
+const wedge = styles.getPropertyValue("--radar-wedge").trim() || "0, 255, 255";
 
+/* ========================================
+   STATE DEFINITIONS
+======================================== */
 let compassEnabled = false;
 let lastDroneUpdate = 0;
+let lastCompassUpdate = performance.now();
+let lastCompassUpdatetext = "";
 
-let myPos = {
-  lat: null,
-  lng: null,
-  heading: 0,
-};
-
-let dronePos = {
-  lat: null,
-  lng: null,
-};
-
+let myPos = { lat: null, lng: null, heading: 0 };
+let dronePos = { lat: null, lng: null };
 let distance = 0;
 let bearing = 0;
 
-/* =========================
-  WEBSOCKET (RAW BINARY)
-========================= */
+// Initialize Renderer with options payload
+const renderer = new RadarRenderer(canvas, rgb, wedge);
+renderer.setVersion("v1.2.19");
 
+/* ========================================
+  WEBSOCKET (RAW BINARY DATA SOCKET)
+======================================== */
 const ws = new WebSocket("ws://localhost:8766");
 ws.binaryType = "arraybuffer";
 
 ws.onmessage = (e) => {
   try {
     const data = JSON.parse(e.data);
-    console.log(data);
-    // ------------------------
-    // STATE SYNC
-    // ------------------------
+
     if (data.type === "state") {
       if (data.me) {
         myPos.lat = data.me.lat;
         myPos.lng = data.me.lng;
-
-        if (typeof data.me.heading === "number") {
-          myPos.heading = data.me.heading;
-        }
       }
-
       if (data.drone) {
         dronePos.lat = data.drone.lat;
         dronePos.lng = data.drone.lng;
       }
-
       updateCalculations();
       return;
     }
 
-    // ------------------------
-    // BACKPACK GPS
-    // ------------------------
     if (data.type === "telemetry") {
-      if (
-        typeof data.gps.lat === "number" &&
-        typeof data.gps.lng === "number"
-      ) {
+      if (typeof data.gps.lat === "number" && typeof data.gps.lng === "number") {
         dronePos.lat = data.gps.lat;
         dronePos.lng = data.gps.lng;
 
-        droneLatEl.innerText = data.gps.lat.toFixed(7);
-        droneLngEl.innerText = data.gps.lng.toFixed(7);
-
-        if (typeof data.alt === "number") {
-          dronePos.altitude = data.alt;
-        }
+        if (typeof data.alt === "number") dronePos.altitude = data.alt;
 
         lastDroneUpdate = Date.now();
-
-        console.log("✔ BACKPACK GPS:", data.gps.lat, data.gps.lng);
-
         updateCalculations();
       }
-
       return;
     }
   } catch (err) {
@@ -98,22 +66,18 @@ ws.onmessage = (e) => {
   }
 };
 
-/* =========================
-  GPS (PHONE POSITION)
-========================= */
-
+/* ========================================
+  GPS (OPERATOR HARDWARE DEVICE POSITION)
+======================================== */
 startGPS();
 
 function startGPS() {
   if (!navigator.geolocation) {
-    feedbackEl.innerText = "GPS not supported";
-    setTimeout(() => {
-      feedbackEl.innerText = "";
-    }, 2000);
+    renderer.showFeedback("GPS not supported");
     return;
   } else {
-    if (enableCompassBtn.style.display !== "none") {
-      enableCompassBtn.style.display = "none";
+    if (window.DeviceOrientationEvent || "AbsoluteOrientationSensor" in window) {
+      enableCompassBtn.style.display = "inline-block";
     }
   }
 
@@ -121,336 +85,101 @@ function startGPS() {
     (pos) => {
       myPos.lat = pos.coords.latitude;
       myPos.lng = pos.coords.longitude;
-      controllerLatEl.innerText = myPos.lat.toFixed(7);
-      controllerLngEl.innerText = myPos.lng.toFixed(7);
-
       updateCalculations();
     },
     (err) => {
       console.error(err);
-      feedbackEl.innerText = "GPS denied";
-      setTimeout(() => {
-        feedbackEl.innerText = "";
-      }, 2000);
+      renderer.showFeedback("GPS denied");
     },
-    {
-      enableHighAccuracy: true,
-      maximumAge: 1000,
-      timeout: 5000,
-    },
+    { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
   );
 }
 
-/* =========================
-  COMPASS
-========================= */
-
-document
-  .getElementById("enableCompass")
-  .addEventListener("click", startCompass);
+/* ========================================
+  COMPASS & ORIENTATION SENSORS
+======================================== */
+enableCompassBtn.addEventListener("click", startCompass);
 
 function startCompass() {
-  console.log("Enabling compass...");
+  console.log("Initializing Hardware Compass...");
   if (compassEnabled) return;
 
-  feedbackEl.innerText = "Compass Active";
-  setTimeout(() => {
-    feedbackEl.innerText = "";
-  }, 2000);
-
-  if ("ondeviceorientationabsolute" in window) {
-    window.addEventListener("deviceorientationabsolute", onCompass, true);
+  if (typeof DeviceOrientationEvent.requestPermission === "function") {
+    DeviceOrientationEvent.requestPermission()
+      .then((state) => {
+        if (state === "granted") initAbsoluteListener();
+        else renderer.showFeedback("Permission denied");
+      })
+      .catch(console.error);
   } else {
-    window.addEventListener("deviceorientation", onCompass, true);
+    initAbsoluteListener();
+  }
+}
+
+function initAbsoluteListener() {
+  if ("ondeviceorientationabsolute" in window) {
+    window.addEventListener("deviceorientationabsolute", onAbsoluteCompass, true);
+    renderer.showFeedback("Absolute Compass Active");
+  } else if ("ondeviceorientation" in window) {
+    window.addEventListener("deviceorientation", onAbsoluteCompass, true);
+    renderer.showFeedback("Relative Fallback Active");
+  } else {
+    renderer.showFeedback("Compass Hardware Missing");
   }
 
   enableCompassBtn.style.display = "none";
-
   compassEnabled = true;
 }
 
-function onCompass(e) {
-  if (e.alpha == null) return;
-
-  const h = (e.alpha + 360) % 360;
-
-  let delta = h - myPos.heading;
-
-  if (delta > 180) delta -= 360;
-  if (delta < -180) delta += 360;
-
-  myPos.heading += delta * 0.15;
-  myPos.heading = (myPos.heading + 360) % 360;
-
-  updateCalculations();
-}
-
-function updateDroneAgeUI() {
-  if (!lastDroneUpdate) {
-    document.getElementById("lastDroneUpdate").innerText = "--";
+function onAbsoluteCompass(e) {
+  // 1. If it's an iOS device, it provides the true compass heading natively
+  if (e.webkitCompassHeading != null) {
+    myPos.heading = e.webkitCompassHeading;
+    trackCompassTiming(performance.now());
     return;
   }
 
-  const secondsAgo = (Date.now() - lastDroneUpdate) / 1000;
-
-  let text = "--";
-  if (secondsAgo < 1) text = "now";
-  else if (secondsAgo < 10) text = `${secondsAgo.toFixed(1)}s ago`;
-  else if (secondsAgo >= 10) text = `${Math.floor(secondsAgo)}s ago`;
-  if (secondsAgo >= 60)
-    text = `${Math.floor(secondsAgo / 60)}m ${Math.floor(secondsAgo % 60)}s ago`;
-
-  document.getElementById("lastDroneUpdate").innerText = text;
+  // 2. If it's an Android/Chrome device using the absolute sensor
+  if (e.alpha !== null) {
+    myPos.heading = (360 - e.alpha) % 360;
+    trackCompassTiming(performance.now());
+  }
 }
 
-/* =========================
-   CALCULATIONS
-========================= */
 
+function trackCompassTiming(now) {
+  lastCompassUpdatetext = `${(now - lastCompassUpdate).toFixed(1)} ms`;
+  lastCompassUpdate = now;
+
+  renderer.updateCompassRate(lastCompassUpdatetext);
+  updateCalculations();
+}
+
+/* ========================================
+   ORCHESTRATION TIMERS & RENDER LOOPS
+======================================== */
 function updateCalculations() {
-  if (
-    myPos.lat != null &&
-    myPos.lng != null &&
-    dronePos.lat != null &&
-    dronePos.lng != null &&
-    isFinite(myPos.lat) &&
-    isFinite(myPos.lng) &&
-    isFinite(dronePos.lat) &&
-    isFinite(dronePos.lng)
-  ) {
+  const isValid = (
+    myPos.lat != null && myPos.lng != null &&
+    dronePos.lat != null && dronePos.lng != null &&
+    isFinite(myPos.lat) && isFinite(myPos.lng) &&
+    isFinite(dronePos.lat) && isFinite(dronePos.lng)
+  );
+
+  if (isValid) {
     distance = hav(myPos.lat, myPos.lng, dronePos.lat, dronePos.lng);
-
     bearing = bear(myPos.lat, myPos.lng, dronePos.lat, dronePos.lng);
-
-    let diff = ((Math.round(bearing) - myPos.heading + 540) % 360) - 180;
-
-    let dirText = "FRONT";
-    if (Math.abs(diff) > 5) {
-      dirText = diff > 0 ? "RIGHT" : "LEFT";
-    }
-
-    bearingEl.innerText = `${dirText} ${Math.round(Math.abs(diff))}°`;
-
-    distEl.innerText = Math.round(distance) + " m";
-  } else {
-    distEl.innerText = "No Drone";
-    bearingEl.innerText = "--";
-  }
-}
-
-/* =========================
-   RENDER (UNCHANGED LOGIC)
-========================= */
-
-function render() {
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-  const radius = Math.min(canvas.width, canvas.height) / 2 - 5;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.strokeStyle = `rgba(${rgb},0.15)`;
-  ctx.lineWidth = 1;
-
-  for (let r = 1; r <= 3; r++) {
-    ctx.beginPath();
-    ctx.arc(cx, cy, (radius / 3) * r, 0, Math.PI * 2);
-    ctx.stroke();
   }
 
-  ctx.strokeStyle = `rgba(${rgb},0.6)`;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx, cy - radius);
-  ctx.stroke();
-
-  ctx.strokeStyle = `rgba(${rgb},0.1)`;
-  ctx.beginPath();
-  ctx.moveTo(cx - radius, cy);
-  ctx.lineTo(cx + radius, cy);
-  ctx.moveTo(cx, cy - radius);
-  ctx.lineTo(cx, cy + radius);
-  ctx.stroke();
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate((-myPos.heading * Math.PI) / 180);
-
-  /* =========================
-    CARDINAL LABELS
-========================= */
-
-  ctx.fillStyle = `rgba(${rgb},1)`;
-  ctx.font = "bold 16px monospace";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  const radiusText = radius - 40;
-
-  const cardinals = [
-    { t: "N", a: 0 },
-    { t: "E", a: 90 },
-    { t: "S", a: 180 },
-    { t: "W", a: 270 },
-  ];
-
-  cardinals.forEach((c) => {
-    ctx.save();
-    ctx.rotate((c.a * Math.PI) / 180);
-    ctx.fillText(c.t, 0, -radiusText);
-    ctx.restore();
-  });
-
-  /* =========================
-   DEGREE NUMBERS (every 30°)
-========================= */
-
-  ctx.font = "10px monospace";
-
-  for (let a = 0; a < 360; a += 30) {
-    ctx.save();
-    ctx.rotate((a * Math.PI) / 180);
-    ctx.fillText(a.toString(), 0, -radius + 25);
-    ctx.restore();
-  }
-
-  /* =========================
-    TICKS (5° + 30° emphasis)
-========================= */
-
-  for (let a = 0; a < 360; a += 5) {
-    ctx.beginPath();
-
-    const isMajor = a % 30 === 0;
-
-    const inner = isMajor ? radius - 18 : radius - 10;
-    const outer = radius;
-
-    const major = `rgba(${rgb},0.6)`;
-    const minor = `rgba(${rgb},0.25)`;
-    ctx.strokeStyle = isMajor ? major : minor;
-
-    ctx.lineWidth = isMajor ? 2 : 1;
-
-    const rad = (a * Math.PI) / 180;
-
-    const x1 = Math.cos(rad) * inner;
-    const y1 = Math.sin(rad) * inner;
-
-    const x2 = Math.cos(rad) * outer;
-    const y2 = Math.sin(rad) * outer;
-
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-  }
-
-  ctx.restore();
-
-  // =========================
-  // DRONE WEDGE + MARKER
-  // =========================
-  if (isFinite(dronePos.lat) && isFinite(dronePos.lng)) {
-    const rel = ((bearing - myPos.heading + 540) % 360) - 180;
-
-    // convert "0 = front (up)" into canvas radians
-    const angle = ((rel - 90) * Math.PI) / 180;
-
-    ctx.save();
-    ctx.translate(cx, cy);
-
-    // =========================
-    // WEDGE (front → drone)
-    // =========================
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-
-    ctx.fillStyle = `rgba(${wedge},0.18)`;
-    ctx.strokeStyle = `rgba(${wedge},0.35)`;
-    ctx.lineWidth = 1;
-
-    ctx.arc(
-      0,
-      0,
-      radius,
-      -Math.PI / 2, // FRONT (up)
-      angle,
-      rel < 0,
-    );
-
-    ctx.closePath();
-    ctx.fill();
-
-    // =========================
-    // MARKER LINE
-    // =========================
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
-
-    ctx.beginPath();
-    // ctx.strokeStyle = "#AB1C1C";
-    ctx.strokeStyle = `rgba(${wedge}, 0.5)`;
-    ctx.lineWidth = 3;
-
-    ctx.moveTo(0, 0);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-
-    // =========================
-    // DOT
-    // =========================
-    ctx.beginPath();
-    ctx.fillStyle = `rgba(${wedge}, 0.8)`;
-    ctx.arc(x, y, 6, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
-  }
-
-  ctx.fillStyle = `rgba(${rgb},0.8)`;
-  ctx.beginPath();
-  ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-  ctx.fill();
+  renderer.updateMetrics(myPos, dronePos, distance, bearing, isValid);
 }
 
-/* =========================
-    MATH
-========================= */
-
-function toRad(x) {
-  return (x * Math.PI) / 180;
-}
-
-function hav(a, b, c, d) {
-  const R = 6371000;
-
-  const dLat = toRad(c - a);
-  const dLng = toRad(d - b);
-
-  const x =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(a)) * Math.cos(toRad(c)) * Math.sin(dLng / 2) ** 2;
-
-  return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-}
-
-function bear(a, b, c, d) {
-  const dLng = toRad(d - b);
-
-  const y = Math.sin(dLng) * Math.cos(toRad(c));
-
-  const x =
-    Math.cos(toRad(a)) * Math.sin(toRad(c)) -
-    Math.sin(toRad(a)) * Math.cos(toRad(c)) * Math.cos(dLng);
-
-  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-}
-
-setInterval(updateDroneAgeUI, 200);
-versionEl.innerText = "v1.1.0";
+setInterval(() => {
+  renderer.updateDroneAge(lastDroneUpdate);
+}, 200);
 
 function loop() {
-  render();
+  renderer.render(myPos, dronePos, distance, bearing);
   requestAnimationFrame(loop);
 }
 
