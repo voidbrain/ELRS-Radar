@@ -32,6 +32,8 @@ const MIME = {
    STATE
 ======================================== */
 
+let lastFlightFlags = null;
+
 const state = {
   me: null,
   drone: null,
@@ -107,7 +109,7 @@ function isValidGPS(lat, lng) {
 ======================================== */
 
 function decodeMSPGPS(msg) {
-  if (msg.length != 28) return null;
+  if (msg.length < 8) return null;
 
   try {
     const hex = msg.toString("hex");
@@ -132,8 +134,8 @@ function decodeMSPGPS(msg) {
 
       if (isValidGPS(lat, lng)) {
         return {
-          protocol: "msp-elrs-backpack-gps",
-          type: "gps",
+          protocol: "gps",
+          type: "drone",
           lat,
           lng,
           altitude: altitude >= 0 ? altitude : 0,
@@ -149,26 +151,75 @@ function decodeMSPGPS(msg) {
       const linkQuality = msg.readUInt8(payloadStart + 5); // LQ %
 
       return {
-        protocol: "node-elrs-link-metrics",
-        type: "link",
+        protocol: "metrics",
+        type: "drone",
         rxRSSI,
         txRSSI,
         linkQuality
       };
     }
 
-    // --- CASE C: 19-Byte Flight Controller Status / Mode Frame ---
-    if (payloadLen === 10 && msg.readUInt8(payloadStart + 2) === 0x1E) {
-      // Extract the raw status text bytes from the remainder of the payload frame
-      // This strips away the ea 08 1e headers to read the status characters
-      const statusText = msg.toString("utf8", payloadStart + 3, payloadStart + 10).replace(/\0/g, "").trim();
+    // Ensure this variable is initialized in your global or outer scope 
+// so its state persists across consecutive message evaluations:
+// let lastFlightFlags = null;
 
-      return {
-        protocol: "node-elrs-fc-status",
-        type: "status",
-        flightMode: statusText || "ACRO" // Fallback definition placeholder
-      };
+// --- CASE C: Flight Controller Status / Mode Frame ---
+if (payloadLen >= 10 && msg.readUInt8(payloadStart + 2) === 0x1E) {
+
+  const flightModeFlags = msg.readUInt32LE(payloadStart + 6);
+
+  // --- INIT ---
+  if (lastFlightFlags === null) {
+    lastFlightFlags = flightModeFlags;
+  }
+
+  // --- BIT DIFF DETECTION ---
+  const changed = flightModeFlags ^ lastFlightFlags;
+
+  if (changed !== 0) {
+    console.log("\n==================== FLIGHT FLAGS CHANGE ====================");
+
+    for (let i = 0; i < 32; i++) {
+      if (changed & (1 << i)) {
+        const oldVal = (lastFlightFlags & (1 << i)) !== 0;
+        const newVal = (flightModeFlags & (1 << i)) !== 0;
+
+        console.log(`BIT ${i}: ${oldVal} → ${newVal}`);
+      }
     }
+
+    console.log("BIN:", flightModeFlags.toString(2).padStart(32, "0"));
+    console.log("TIME:", new Date().toISOString());
+    console.log("===========================================================\n");
+
+    lastFlightFlags = flightModeFlags;
+  }
+
+  // --- INTERPRETATION (DO NOT TRUST BIT 0 AS TRUE ARM STATE) ---
+  const isAngle   = (flightModeFlags & (1 << 1)) !== 0;
+  const isHorizon = (flightModeFlags & (1 << 2)) !== 0;
+  const isRTH     = (flightModeFlags & (1 << 13)) !== 0;
+
+  // Treat bit0 as "arm switch / request", NOT real motor state
+  const armSwitch = (flightModeFlags & (1 << 0)) !== 0;
+
+  let modeText = "ACRO";
+  if (isRTH) modeText = "RTH";
+  else if (isAngle) modeText = "ANGLE";
+  else if (isHorizon) modeText = "HORIZON";
+
+  // Use your requested armSwitch heuristic override 
+  const isArmed = armSwitch; 
+
+  return {
+    protocol: "status",
+    type: "drone",
+    isArmed,
+    flightMode: modeText,
+    rawStatus: `${isArmed ? "ARMED" : "DISARMED"} [${modeText}]`
+  };
+}
+
 
     // --- CASE D: 21-Byte Battery Sensor Frame ---
     if (payloadLen === 12 && msg.readUInt8(payloadStart + 2) === 0x08) {
@@ -179,8 +230,8 @@ function decodeMSPGPS(msg) {
       const remainingPct = msg.readUInt8(payloadStart + 10);
 
       return {
-        protocol: "node-elrs-battery-sensor",
-        type: "battery",
+        protocol: "battery",
+        type: "drone",
         vbat: rawVoltage / 10, // CRSF sends battery data scaled in 0.1V units
         current: rawCurrent / 10, // scaled in 0.1A units
         mah: capacity,
@@ -199,34 +250,20 @@ function decodeMSPGPS(msg) {
 
 function processPacket(msg, rinfo = {}) {
   const telemetry = decodeMSPGPS(msg);
-
   logPacket(msg, {
-    MSPGPS: telemetry,
+    telemetry,
     from: `${rinfo.address || "replay"}:${rinfo.port || 0}`
   });
 
   if (!telemetry) return;
 
-  state.drone = {
-    lat: telemetry.lat,
-    lng: telemetry.lng,
-    altitude: telemetry.altitude,
-    sats: telemetry.sats
-  };
-
-  state.timestamp = Date.now();
-
   broadcast({
-    type: "telemetry",
-    protocol: telemetry.protocol,
-    gps: state.drone,
-    timestamp: state.timestamp
+    type: telemetry.protocol,
+    data: telemetry,
+    timestamp: Date.now()
   });
 
-  // Forward raw packets over down-pipe sockets
-  udpOut.send(msg, SQUIRREL_PORT, SQUIRREL_HOST, (err) => {
-    if (err) console.error("SQUIRREL forward error:", err.message);
-  });
+  udpOut.send(msg, SQUIRREL_PORT, SQUIRREL_HOST);
 }
 
 /* ========================================

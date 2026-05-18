@@ -1,4 +1,3 @@
-// radar.js
 import { hav, bear } from "./math.js";
 import { RadarRenderer } from "./renderer.js";
 
@@ -10,25 +9,32 @@ const rgb = styles.getPropertyValue("--radar-line").trim() || "0, 255, 0";
 const wedge = styles.getPropertyValue("--radar-wedge").trim() || "0, 255, 255";
 
 /* ========================================
-   STATE DEFINITIONS
+   STATE
 ======================================== */
+
+const HEADING_ALPHA = 0.2;
+let compassReady = false;
+
 let compassEnabled = false;
 let lastDroneUpdate = 0;
-let lastCompassUpdate = performance.now();
-let lastCompassUpdatetext = "";
 
-let myPos = { lat: null, lng: null, heading: 0 };
-let dronePos = { lat: null, lng: null };
+let myPos = { lat: null, lng: null, heading: null };
+
+let droneTelemetry = { lat: null, lng: null, altitude: null, sats: null };
 let distance = 0;
 let bearing = 0;
 
-// Initialize Renderer with options payload
+let metrics = { rxRSSI: 0, txRSSI: 0, linkQuality: 0 };
+let droneStatus = null;
+let battery = { vbat: 0, current: 0, mah: 0, batteryPercent: 0 };
+
 const renderer = new RadarRenderer(canvas, rgb, wedge);
-renderer.setVersion("v1.2.19");
+renderer.setVersion("v1.2.32");
 
 /* ========================================
-  WEBSOCKET (RAW BINARY DATA SOCKET)
+   WEBSOCKET
 ======================================== */
+
 const ws = new WebSocket("ws://localhost:8766");
 ws.binaryType = "arraybuffer";
 
@@ -36,55 +42,75 @@ ws.onmessage = (e) => {
   try {
     const data = JSON.parse(e.data);
 
-    if (data.type === "state") {
-      if (data.me) {
-        myPos.lat = data.me.lat;
-        myPos.lng = data.me.lng;
+    if (data.type === "gps") {
+      if (data.data.type === "controller") {
+        myPos.lat = data.data.lat;
+        myPos.lng = data.data.lng;
       }
-      if (data.drone) {
-        dronePos.lat = data.drone.lat;
-        dronePos.lng = data.drone.lng;
+
+      if (data.data.type === "drone") {
+        droneTelemetry.lat = data.data.lat;
+        droneTelemetry.lng = data.data.lng;
+        droneTelemetry.altitude = data.data.altitude ?? droneTelemetry.altitude;
+        droneTelemetry.sats = data.data.sats ?? droneTelemetry.sats;
       }
+
       updateCalculations();
       return;
     }
 
-    if (data.type === "telemetry") {
-      if (typeof data.gps.lat === "number" && typeof data.gps.lng === "number") {
-        dronePos.lat = data.gps.lat;
-        dronePos.lng = data.gps.lng;
-
-        if (typeof data.alt === "number") dronePos.altitude = data.alt;
-
-        lastDroneUpdate = Date.now();
-        updateCalculations();
-      }
-      return;
+    if (data.type === "metrics") {
+      metrics = {
+        rxRSSI: data.data.rxRSSI ?? 0,
+        txRSSI: data.data.txRSSI ?? 0,
+        linkQuality: data.data.linkQuality ?? 0
+      };
     }
+
+    if (data.type === "status") {
+      droneStatus = data.data.flightMode ?? "";
+    }
+
+    if (data.type === "battery") {
+      battery = {
+        vbat: data.data.vbat ?? 0,
+        current: data.data.current ?? 0,
+        mah: data.data.mah ?? 0,
+        batteryPercent: data.data.batteryPercent ?? 0
+      };
+    }
+
+    renderer.updateTelemetry({ metrics, battery, droneStatus });
+    lastDroneUpdate = Date.now();
+
   } catch (err) {
     console.error("WS parse error:", err.message);
   }
 };
 
 /* ========================================
-  GPS (OPERATOR HARDWARE DEVICE POSITION)
+   GPS
 ======================================== */
+
 startGPS();
 
 function startGPS() {
   if (!navigator.geolocation) {
     renderer.showFeedback("GPS not supported");
     return;
-  } else {
-    if (window.DeviceOrientationEvent || "AbsoluteOrientationSensor" in window) {
-      enableCompassBtn.style.display = "inline-block";
-    }
+  }
+
+  if (window.DeviceOrientationEvent) {
+    enableCompassBtn.style.display = "inline-block";
   }
 
   navigator.geolocation.watchPosition(
     (pos) => {
       myPos.lat = pos.coords.latitude;
       myPos.lng = pos.coords.longitude;
+      myPos.accuracy = pos.coords.accuracy;
+      myPos.altitude = pos.coords.altitude;
+
       updateCalculations();
     },
     (err) => {
@@ -96,90 +122,97 @@ function startGPS() {
 }
 
 /* ========================================
-  COMPASS & ORIENTATION SENSORS
+   COMPASS
 ======================================== */
+
 enableCompassBtn.addEventListener("click", startCompass);
 
 function startCompass() {
-  console.log("Initializing Hardware Compass...");
   if (compassEnabled) return;
 
   if (typeof DeviceOrientationEvent.requestPermission === "function") {
     DeviceOrientationEvent.requestPermission()
       .then((state) => {
-        if (state === "granted") initAbsoluteListener();
+        if (state === "granted") initCompass();
         else renderer.showFeedback("Permission denied");
       })
       .catch(console.error);
   } else {
-    initAbsoluteListener();
+    initCompass();
   }
 }
 
-function initAbsoluteListener() {
-  if ("ondeviceorientationabsolute" in window) {
-    window.addEventListener("deviceorientationabsolute", onAbsoluteCompass, true);
-    renderer.showFeedback("Absolute Compass Active");
-  } else if ("ondeviceorientation" in window) {
-    window.addEventListener("deviceorientation", onAbsoluteCompass, true);
-    renderer.showFeedback("Relative Fallback Active");
-  } else {
-    renderer.showFeedback("Compass Hardware Missing");
-  }
-
-  enableCompassBtn.style.display = "none";
+function initCompass() {
   compassEnabled = true;
-}
+  enableCompassBtn.style.display = "none";
+  renderer.showFeedback("Compass Active");
 
-function onAbsoluteCompass(e) {
-  // 1. If it's an iOS device, it provides the true compass heading natively
-  if (e.webkitCompassHeading != null) {
-    myPos.heading = e.webkitCompassHeading;
-    trackCompassTiming(performance.now());
-    return;
+  if ("ondeviceorientationabsolute" in window) {
+    renderer.showFeedback("absolute")
+    window.addEventListener("deviceorientationabsolute", onCompass, true);
+  } else {
+    renderer.showFeedback("not absolute")
+    window.addEventListener("deviceorientation", onCompass, true);
   }
-
-  // 2. If it's an Android/Chrome device using the absolute sensor
-  if (e.alpha !== null) {
-    myPos.heading = (360 - e.alpha) % 360;
-    trackCompassTiming(performance.now());
-  }
-}
-
-
-function trackCompassTiming(now) {
-  lastCompassUpdatetext = `${(now - lastCompassUpdate).toFixed(1)} ms`;
-  lastCompassUpdate = now;
-
-  renderer.updateCompassRate(lastCompassUpdatetext);
-  updateCalculations();
 }
 
 /* ========================================
-   ORCHESTRATION TIMERS & RENDER LOOPS
+   COMPASS HANDLER
 ======================================== */
-function updateCalculations() {
-  const isValid = (
-    myPos.lat != null && myPos.lng != null &&
-    dronePos.lat != null && dronePos.lng != null &&
-    isFinite(myPos.lat) && isFinite(myPos.lng) &&
-    isFinite(dronePos.lat) && isFinite(dronePos.lng)
-  );
 
-  if (isValid) {
-    distance = hav(myPos.lat, myPos.lng, dronePos.lat, dronePos.lng);
-    bearing = bear(myPos.lat, myPos.lng, dronePos.lat, dronePos.lng);
+function onCompass(e) {
+  let rawHeading = null;
+
+  // iOS
+  if (e.webkitCompassHeading != null && !isNaN(e.webkitCompassHeading)) {
+    rawHeading = e.webkitCompassHeading;
   }
 
-  renderer.updateMetrics(myPos, dronePos, distance, bearing, isValid);
+  // 2. Android handling (Magnetic North -> Converted to True North)
+  else if (e.alpha != null && !isNaN(e.alpha)) {
+    // Standardize Android orientation direction
+    let magneticHeading = (360 - e.alpha) % 360;
+    
+    // Add declination to convert Magnetic to True North
+    hardwareHeading = (magneticHeading + magneticDeclination + 360) % 360;
+  }
+
+  if (hardwareHeading != null) {
+    // Apply your smooth alpha filtering loop safely here
+    const diff = ((hardwareHeading - myPos.heading + 540) % 360) - 180;
+    myPos.heading = (myPos.heading + diff * HEADING_ALPHA + 360) % 360;
+  }
 }
+
+/* ========================================
+   CALCULATIONS
+======================================== */
+
+function updateCalculations() {
+  const isValid =
+    myPos.lat != null &&
+    myPos.lng != null &&
+    droneTelemetry.lat != null &&
+    droneTelemetry.lng != null;
+
+  if (isValid) {
+    distance = hav(myPos.lat, myPos.lng, droneTelemetry.lat, droneTelemetry.lng);
+    bearing = bear(myPos.lat, myPos.lng, droneTelemetry.lat, droneTelemetry.lng);
+  }
+
+  renderer.updateMetrics(myPos, droneTelemetry, distance, bearing, isValid);
+}
+
+/* ========================================
+   RENDER LOOP
+======================================== */
 
 setInterval(() => {
   renderer.updateDroneAge(lastDroneUpdate);
-}, 200);
+}, 1000);
 
 function loop() {
-  renderer.render(myPos, dronePos, distance, bearing);
+  renderer.render(myPos, droneTelemetry, distance, bearing);
   requestAnimationFrame(loop);
 }
 

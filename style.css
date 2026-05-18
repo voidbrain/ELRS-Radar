@@ -31,7 +31,6 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  width: 98vw;
   height: 100vh;
   touch-action: manipulation;
   overscroll-behavior: none;
@@ -39,9 +38,15 @@ body {
   padding: 1vh 2vw 0;
 }
 
+.split {
+  display: flex;
+  justify-content: space-between;
+}
+
+#droneStatus { display: inline-block; min-height:1em; }
+
 #radarContainer {
   position: relative;
-  width: 98vw;
   max-width: 420px;
 }
 

@@ -13,11 +13,24 @@ export class RadarRenderer {
       feedback: document.getElementById("feedbackEl"),
       droneLat: document.getElementById("droneLat"),
       droneLng: document.getElementById("droneLng"),
+      droneAltitude: document.getElementById("droneAltitude"),
+      droneSats: document.getElementById("droneSats"),
       controllerLat: document.getElementById("controllerLat"),
       controllerLng: document.getElementById("controllerLng"),
+      accuracy: document.getElementById("accuracy"),
       version: document.getElementById("version"),
-      compassRate: document.getElementById("compassRateDisplay"),
-      droneAge: document.getElementById("lastDroneUpdate")
+      droneAge: document.getElementById("lastDroneUpdate"),
+      droneStatus: document.getElementById("droneStatus"),
+
+      batteryPercent: document.getElementById("batteryPercent"),
+      current:  document.getElementById("current"),
+      mah:  document.getElementById("mah"),
+      vbat:  document.getElementById("vbat"),
+
+      rxRSSI: document.getElementById("rxRSSI"),
+      txRSSI: document.getElementById("txRSSI"),
+      linkQuality: document.getElementById("linkQuality"),
+
     };
     
     this.feedbackTimeout = null;
@@ -25,6 +38,20 @@ export class RadarRenderer {
 
   setVersion(versionText) {
     if (this.dom.version) this.dom.version.innerText = versionText;
+  }
+
+  updateTelemetry(telemetry) {
+    
+    if (this.dom.batteryPercent) this.dom.batteryPercent.innerText = `${telemetry.battery.batteryPercent ?? 0}%`;
+    if (this.dom.current) this.dom.current.innerText = `${telemetry.battery.current ?? 0}A`;
+    if (this.dom.mah) this.dom.mah.innerText = `${telemetry.battery.mah ?? 0}mAh`;
+    if (this.dom.vbat) this.dom.vbat.innerText = `${telemetry.battery.vbat ?? 0}V`;
+
+    if (this.dom.droneStatus) this.dom.droneStatus.innerText = telemetry.droneStatus ?? "";
+
+    if (this.dom.rxRSSI) this.dom.rxRSSI.innerText = `${telemetry.metrics.rxRSSI ?? 0}dBm`;
+    if (this.dom.txRSSI) this.dom.txRSSI.innerText = `${telemetry.metrics.txRSSI ?? 0}dBm`;
+    if (this.dom.linkQuality) this.dom.linkQuality.innerText = `${telemetry.metrics.linkQuality ?? 0}%`;
   }
 
   showFeedback(message, duration = 2000) {
@@ -38,12 +65,6 @@ export class RadarRenderer {
     }, duration);
   }
 
-  updateCompassRate(deltaText) {
-    if (this.dom.compassRate) {
-      this.dom.compassRate.innerText = `Compass Delta: ${deltaText}`;
-    }
-  }
-
   updateDroneAge(lastDroneUpdate) {
     if (!this.dom.droneAge) return;
     if (!lastDroneUpdate) {
@@ -55,8 +76,7 @@ export class RadarRenderer {
     let text = "--";
 
     if (secondsAgo < 1) text = "now";
-    else if (secondsAgo < 10) text = `${secondsAgo.toFixed(1)}s ago`;
-    else if (secondsAgo >= 10) text = `${Math.floor(secondsAgo)}s ago`;
+    else if (secondsAgo < 60) text = `${Math.floor(secondsAgo)}s ago`;
     if (secondsAgo >= 60) {
       text = `${Math.floor(secondsAgo / 60)}m ${Math.floor(secondsAgo % 60)}s ago`;
     }
@@ -64,7 +84,7 @@ export class RadarRenderer {
     this.dom.droneAge.innerText = text;
   }
 
-  updateMetrics(myPos, dronePos, distance, bearing, isValid) {
+  updateMetrics(myPos, droneTelemetry, distance, bearing, isValid) {
     // 1. Base Controller / Target LatLng Displays
     if (this.dom.controllerLat) {
       this.dom.controllerLat.innerText = myPos.lat != null ? myPos.lat.toFixed(7) : "-";
@@ -72,11 +92,21 @@ export class RadarRenderer {
     if (this.dom.controllerLng) {
       this.dom.controllerLng.innerText = myPos.lng != null ? myPos.lng.toFixed(7) : "-";
     }
+    
+    if (this.dom.accuracy) {
+      this.dom.accuracy.innerText = `${myPos.accuracy != null ? myPos.accuracy.toFixed(0) + "mt R" : "-"}`;
+    }
     if (this.dom.droneLat) {
-      this.dom.droneLat.innerText = dronePos.lat != null ? dronePos.lat.toFixed(7) : "-";
+      this.dom.droneLat.innerText = droneTelemetry.lat != null ? droneTelemetry.lat.toFixed(7) : "-";
     }
     if (this.dom.droneLng) {
-      this.dom.droneLng.innerText = dronePos.lng != null ? dronePos.lng.toFixed(7) : "-";
+      this.dom.droneLng.innerText = droneTelemetry.lng != null ? droneTelemetry.lng.toFixed(7) : "-";
+    }
+    if (this.dom.droneAltitude) {
+      this.dom.droneAltitude.innerText = `${droneTelemetry.altitude != null ? droneTelemetry.altitude.toFixed(0) + "mt" : "-"}`;
+    }
+    if (this.dom.droneSats) {
+      this.dom.droneSats.innerText = droneTelemetry.sats != null ? droneTelemetry.sats.toFixed(0) : "-";
     }
 
     // 2. Computed Distance and Direction UI values
@@ -94,7 +124,7 @@ export class RadarRenderer {
     }
   }
 
-  render(myPos, dronePos, distance, bearing) {
+  render(myPos, droneTelemetry, distance, bearing) {
     const cx = this.canvas.width / 2;
     const cy = this.canvas.height / 2;
     const radius = Math.min(this.canvas.width, this.canvas.height) / 2 - 5;
@@ -185,48 +215,32 @@ export class RadarRenderer {
       this.ctx.stroke();
     }
 
-    this.ctx.restore();
-
     /* =========================
       DRONE TARGET WEDGE OVERLAY
     ========================= */
-    if (dronePos.lat != null && dronePos.lng != null && isFinite(dronePos.lat) && isFinite(dronePos.lng)) {
-      const rel = ((bearing - myPos.heading + 540) % 360) - 180;
-      const angle = ((rel - 90) * Math.PI) / 180;
-
-      this.ctx.save();
-      this.ctx.translate(cx, cy);
+    if (droneTelemetry.lat != null && droneTelemetry.lng != null && isFinite(droneTelemetry.lat) && isFinite(droneTelemetry.lng)) {
+      
+      // Convert absolute bearing straight to radians (0° is North, 90° is East)
+      const bearingRad = (bearing * Math.PI) / 180;
+      
+      // Map directly to Canvas angles where straight UP is -Math.PI / 2
+      const startAngle = -Math.PI / 2;
+      const endAngle = startAngle + bearingRad;
 
       this.ctx.beginPath();
       this.ctx.moveTo(0, 0);
       this.ctx.fillStyle = `rgba(${this.wedge},0.18)`;
       this.ctx.strokeStyle = `rgba(${this.wedge},0.35)`;
       this.ctx.lineWidth = 1;
-      this.ctx.arc(0, 0, radius, -Math.PI / 2, angle, rel < 0);
-      this.ctx.closePath();
+
+      // Keep drawing direction strictly clockwise (false) to prevent path flips
+      this.ctx.arc(0, 0, radius, startAngle, endAngle, false);
+
+      this.ctx.lineTo(0, 0);
       this.ctx.fill();
-
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius;
-
-      this.ctx.beginPath();
-      this.ctx.strokeStyle = `rgba(${this.wedge}, 0.5)`;
-      this.ctx.lineWidth = 3;
-      this.ctx.moveTo(0, 0);
-      this.ctx.lineTo(x, y);
       this.ctx.stroke();
-
-      this.ctx.beginPath();
-      this.ctx.fillStyle = `rgba(${this.wedge}, 0.8)`;
-      this.ctx.arc(x, y, 6, 0, Math.PI * 2);
-      this.ctx.fill();
-
-      this.ctx.restore();
     }
 
-    this.ctx.fillStyle = `rgba(${this.rgb},0.8)`;
-    this.ctx.beginPath();
-    this.ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-    this.ctx.fill();
+    this.ctx.restore(); 
   }
 }

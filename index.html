@@ -25,7 +25,7 @@
       <span class="icon">📐</span> <span id="bearingDisplay">--</span>
     </div>
     
-    <div class="telemetry-table">
+    <div class="gps-table">
       <table border="1" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr>
@@ -41,20 +41,80 @@
             <td><span id="controllerLat">-</span></td>
           </tr>
           <tr>
-            <th>Lon</th>
+            <th>Lng</th>
             <td><span id="droneLng">-</span></td>
             <td><span id="controllerLng">-</span></td>
+          </tr>
+          <tr>
+            <th>Sats</th>
+            <td><span id="droneSats">-</span></td>
+            <td><span id="accuracy">-</span></td>
+          </tr>
+          <tr>
+            <th>Alt</th>
+            <td><span id="droneAltitude">-</span></td>
+            <td></td>
           </tr>
         </tbody>
       </table>
     </div>
+    
 
     <div class="diagnostics" style="margin-top: 10px;">
-      Last view: <span id="lastDroneUpdate">--</span> | 
-      <span id="compassRateDisplay">Compass Delta: --</span>
+      Last view: <span id="lastDroneUpdate">--</span>
       <div id="feedbackElBottom"></div>
     </div>
     
+    <div style="margin-top: 5px;" class="split">
+      <div class="telemetry-table">
+        <table border="1" style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th>Battery</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Charge: <span id="batteryPercent">--</span></td>
+            </tr>
+            <tr>
+              <td>Current: <span id="current">--</span></td>
+            </tr>
+            <tr>
+              <td>mAh: <span id="mah">--</span></td>
+            </tr>
+            <tr>
+              <td>VBAT: <span id="vbat">--</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="telemetry-table">
+        <table border="1" style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Rx: <span id="rxRSSI">--</span></td>
+            </tr>
+            <tr>
+              <td>Tx: <span id="txRSSI">--</span></td>
+            </tr>
+            <tr>
+              <td>LQ: <span id="linkQuality">--</span></td>
+            </tr>
+            <tr>
+              <td><span id="droneStatus">--</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div style="margin-top: 5px;">
       <span id="version">--</span>
     </div>

@@ -153,8 +153,8 @@ function sendBridgeUpdate() {
 
   bridge.send(
     JSON.stringify({
-      type: "debug-pos",
-      me: {
+      type: "gps",
+      controller: {
         lat: me.lat,
         lng: me.lng,
         heading: myHeading,
