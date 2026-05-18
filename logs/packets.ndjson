@@ -18200,3 +18200,8 @@
 {"ts":1779132979654,"hex":"24583c0011000600ea040700002360","len":15,"payload":{"telemetry":null,"from":"replay:0"}}
 {"ts":1779132979717,"hex":"24583c0011000e00ea0c14dbda640b010707d7600d8c81","len":23,"payload":{"telemetry":{"protocol":"metrics","type":"drone","rxRSSI":-37,"txRSSI":-38,"linkQuality":100},"from":"replay:0"}}
 {"ts":1779132980074,"hex":"24583c0011000e00ea0c14dbd9640b010707d0600c2381","len":23,"payload":{"telemetry":{"protocol":"metrics","type":"drone","rxRSSI":-37,"txRSSI":-39,"linkQuality":100},"from":"replay:0"}}
+{"ts":1779132980450,"hex":"24583c0011000e00ea0c14dcd9640b010707d8600dd481","len":23,"payload":{"telemetry":{"protocol":"metrics","type":"drone","rxRSSI":-36,"txRSSI":-39,"linkQuality":100},"from":"replay:0"}}
+{"ts":1779132980809,"hex":"24583c0011000a00ea081eff41ff41f8a4ee9f","len":19,"payload":{"telemetry":{"protocol":"status","type":"drone","isArmed":true,"flightMode":"RTH","rawStatus":"ARMED [RTH]"},"from":"replay:0"}}
+{"ts":1779132980817,"hex":"24583c0011000e00ea0c14dcd9640b010707d4600d4181","len":23,"payload":{"telemetry":{"protocol":"metrics","type":"drone","rxRSSI":-36,"txRSSI":-39,"linkQuality":100},"from":"replay:0"}}
+{"ts":1779132981122,"hex":"24583c0011000e00ea0c14dad9640b010707cc600c0d81","len":23,"payload":{"telemetry":{"protocol":"metrics","type":"drone","rxRSSI":-38,"txRSSI":-39,"linkQuality":100},"from":"replay:0"}}
+{"ts":1779132981194,"hex":"24583c0011000e00ea0c14dad9640b010707d1640c2e81","len":23,"payload":{"telemetry":{"protocol":"metrics","type":"drone","rxRSSI":-38,"txRSSI":-39,"linkQuality":100},"from":"replay:0"}}
