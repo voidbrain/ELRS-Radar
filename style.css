@@ -40,8 +40,13 @@ body {
 
 .split {
   display: flex;
-  justify-content: space-between;
 }
+
+.split > * {
+  flex: 1;
+}
+table { white-space: nowrap; text-align: left; }
+
 
 #droneStatus { display: inline-block; min-height:1em; }
 
