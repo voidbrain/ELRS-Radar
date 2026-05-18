@@ -3,6 +3,9 @@ import { RadarRenderer } from "./renderer.js";
 
 const canvas = document.getElementById("radarCanvas");
 const enableCompassBtn = document.getElementById("enableCompass");
+const showMoreBtn = document.getElementById("showMore");
+const showLessBtn = document.getElementById("showLess");
+const moreSection = document.getElementById("more");
 
 const styles = getComputedStyle(document.documentElement);
 const rgb = styles.getPropertyValue("--radar-line").trim() || "0, 255, 0";
@@ -28,7 +31,7 @@ let droneStatus = null;
 let battery = { vbat: 0, current: 0, mah: 0, batteryPercent: 0 };
 
 const renderer = new RadarRenderer(canvas, rgb, wedge);
-renderer.setVersion("v1.2.41");
+renderer.setVersion("v1.2.42");
 
 /* ========================================
    WEBSOCKET
@@ -205,7 +208,7 @@ function initQuaternionCompass() {
 
     sensor.start();
 
-    setCompassUIActive("Quaternion Absolute");
+    setCompassUIActive();
   } catch (err) {
     console.error(err);
     fallbackToLegacyCompass();
@@ -215,10 +218,10 @@ function initQuaternionCompass() {
 function initLegacyCompass() {
   if ("ondeviceorientationabsolute" in window) {
     window.addEventListener("deviceorientationabsolute", onLegacyCompass, true);
-    setCompassUIActive("Legacy Absolute");
+    setCompassUIActive();
   } else {
     window.addEventListener("deviceorientation", onLegacyCompass, true);
-    setCompassUIActive("Legacy Relative");
+    setCompassUIActive();
   }
 }
 
@@ -250,10 +253,10 @@ function applyHeading(hardwareHeading) {
     (myPos.heading + diff * HEADING_ALPHA + 360) % 360;
 }
 
-function setCompassUIActive(modeLabel) {
+function setCompassUIActive() {
   compassEnabled = true;
   enableCompassBtn.style.display = "none";
-  renderer.showFeedback(`Compass Active (${modeLabel})`);
+  renderer.showFeedback(`Compass Active`);
 }
 
 /* ========================================
@@ -274,6 +277,19 @@ function updateCalculations() {
 
   renderer.updateMetrics(myPos, droneTelemetry, distance, bearing, isValid);
 }
+
+/* ========================================
+   HTML `MORE` SECTION VISIBILITY
+======================================== */
+
+showMoreBtn.addEventListener("click", toggleSection);
+showLessBtn.addEventListener("click", toggleSection);
+
+function toggleSection() {
+  moreSection.classList.toggle("hidden");
+  showMoreBtn.classList.toggle("hidden");
+  showLessBtn.classList.toggle("hidden");
+};
 
 /* ========================================
    RENDER LOOP

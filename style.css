@@ -38,6 +38,15 @@ body {
   padding: 1vh 2vw 0;
 }
 
+.show-more {
+  text-align: right;
+  width: 100%;
+}
+
+.hidden {
+  display: none;
+}
+
 .split {
   display: flex;
 }
@@ -45,8 +54,6 @@ body {
 .split > * {
   flex: 1;
 }
-table { white-space: nowrap; text-align: left; }
-
 
 #droneStatus { display: inline-block; min-height:1em; }
 
@@ -113,9 +120,17 @@ button:active {
   font-size: 14px;
 }
 
+.section { 
+  margin-top: 5px;
+}
+
 table {
   margin: 10px auto;
   border-collapse: collapse;
+  width: 100%;
+  white-space: nowrap; 
+  text-align: left;
+
   th, td {
     padding: 4px 8px;
     border: 1px dashed var(--color);

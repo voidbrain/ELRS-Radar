@@ -26,10 +26,10 @@
     </div>
     
     <div class="gps-table">
-      <table border="1" style="width: 100%; border-collapse: collapse;">
+      <table border="1">
         <thead>
           <tr>
-            <th style="text-align: right;"></th>
+            <th></th>
             <th>Drone</th>
             <th>Controller</th>
           </tr>
@@ -58,65 +58,72 @@
         </tbody>
       </table>
     </div>
-    
 
-    <div class="diagnostics" style="margin-top: 10px;">
+    <div class="diagnostics section">
       Last view: <span id="lastDroneUpdate">--</span>
-      <div id="feedbackElBottom"></div>
+    </div>
+
+    <div class="show-more section">
+      <button id="showMore">+</button>
+      <button id="showLess" class="hidden">-</button>
     </div>
     
-    <div style="margin-top: 5px;" class="split">
-      <div class="telemetry-table">
-        <table border="1" style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr>
-              <th>Battery</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Charge: <span id="batteryPercent">--</span></td>
-            </tr>
-            <tr>
-              <td>Current: <span id="current">--</span></td>
-            </tr>
-            <tr>
-              <td>mAh: <span id="mah">--</span></td>
-            </tr>
-            <tr>
-              <td>VBAT: <span id="vbat">--</span></td>
-            </tr>
-          </tbody>
-        </table>
+    <div id="more" class="hidden">
+      <div class="split">
+        <div class="telemetry-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Battery</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Charge: <span id="batteryPercent">--</span></td>
+              </tr>
+              <tr>
+                <td>Current: <span id="current">--</span></td>
+              </tr>
+              <tr>
+                <td>mAh: <span id="mah">--</span></td>
+              </tr>
+              <tr>
+                <td>VBAT: <span id="vbat">--</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="telemetry-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Rx: <span id="rxRSSI">--</span></td>
+              </tr>
+              <tr>
+                <td>Tx: <span id="txRSSI">--</span></td>
+              </tr>
+              <tr>
+                <td>LQ: <span id="linkQuality">--</span></td>
+              </tr>
+              <tr>
+                <td><span id="droneStatus">--</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div class="telemetry-table">
-        <table border="1" style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Rx: <span id="rxRSSI">--</span></td>
-            </tr>
-            <tr>
-              <td>Tx: <span id="txRSSI">--</span></td>
-            </tr>
-            <tr>
-              <td>LQ: <span id="linkQuality">--</span></td>
-            </tr>
-            <tr>
-              <td><span id="droneStatus">--</span></td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="section">
+        <span id="version">--</span>
       </div>
     </div>
-
-    <div style="margin-top: 5px;">
-      <span id="version">--</span>
+      
     </div>
 
     <script type="module" src="radar.js"></script>
