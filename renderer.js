@@ -1,10 +1,11 @@
 // renderer.js
 export class RadarRenderer {
-  constructor(canvas, rgb, wedge) {
+  constructor(canvas, rgb, wedge, accentColor) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.rgb = rgb.trim() || "0, 255, 0";
     this.wedge = wedge.trim() || "0, 255, 255";
+    this.accentColor = accentColor.trim() || "0, 255, 255";
 
     this.dom = {
       dist: document.getElementById("dist"),
@@ -134,7 +135,7 @@ export class RadarRenderer {
     }
   }
 
-  render(myPos, droneTelemetry, distance, bearing) {
+  render(myPos, droneTelemetry, bearing) {
     const ctx = this.ctx;
     const cx = this.canvas.width / 2;
     const cy = this.canvas.height / 2;
@@ -206,7 +207,7 @@ export class RadarRenderer {
     }
 
     // *** inverted numbered circle
-    ctx.fillStyle = `rgba(${this.wedge},1)`;
+    ctx.fillStyle = `rgba(${this.accentColor},1)`;
     for (let a = 0; a < 360; a += 30) {
       ctx.save();
       ctx.rotate(-(a * Math.PI) / 180);
@@ -237,29 +238,62 @@ export class RadarRenderer {
       ctx.stroke();
     }
 
-    /* =========================
-       DRONE WEDGE (FIXED)
-    ========================= */
-
     if (
       droneTelemetry.lat != null &&
-      droneTelemetry.lng != null
+      droneTelemetry.lng != null &&
+      Number.isFinite(bearing)
     ) {
-      const relative = (bearing * Math.PI) / 180;
+      // bearing relative to phone
+      const relative =
+        ((bearing - myPos.heading + 540) % 360) - 180;
 
+      const angle = (relative * Math.PI) / 180;
+      const ORIGIN = -Math.PI / 2;
+
+      // fixed screen-top ray
       const start = -Math.PI / 2;
-      const end = start + relative;
+
+      // drone direction ray
+      const end = start + angle;
+      console.log(start, end, bearing)
+
+      // shortest arc direction
+      const anticlockwise = angle < 0;
+
+      ctx.save();
+      ctx.translate(cx, cy);
 
       ctx.beginPath();
       ctx.moveTo(0, 0);
+
+      // side 1 = ALWAYS phone top
+      ctx.lineTo(
+        Math.cos(ORIGIN) * radius,
+        Math.sin(ORIGIN) * radius
+      );
+
+      // arc to drone
+      ctx.arc(
+        0,
+        0,
+        radius,
+        start,
+        end,
+        anticlockwise
+      );
+
+      // close wedge
+      ctx.lineTo(0, 0);
+
+      ctx.closePath();
+
       ctx.fillStyle = `rgba(${this.wedge},0.18)`;
       ctx.strokeStyle = `rgba(${this.wedge},0.35)`;
 
-      ctx.arc(0, 0, radius, start, end);
-      ctx.lineTo(0, 0);
-
       ctx.fill();
       ctx.stroke();
+
+      ctx.restore();
     }
 
     ctx.restore();

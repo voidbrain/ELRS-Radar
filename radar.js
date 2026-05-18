@@ -8,8 +8,9 @@ const showLessBtn = document.getElementById("showLess");
 const moreSection = document.getElementById("more");
 
 const styles = getComputedStyle(document.documentElement);
-const rgb = styles.getPropertyValue("--radar-line").trim() || "0, 255, 0";
-const wedge = styles.getPropertyValue("--radar-wedge").trim() || "0, 255, 255";
+const textColor = styles.getPropertyValue("--radar-line").trim() || "0, 255, 0";
+const wedgeColor = styles.getPropertyValue("--radar-wedge").trim() || "0, 255, 255";
+const accentColor = styles.getPropertyValue("--accentColor").trim() || "0, 255, 255";
 
 /* ========================================
    STATE
@@ -30,8 +31,8 @@ let metrics = { rxRSSI: 0, txRSSI: 0, linkQuality: 0 };
 let droneStatus = null;
 let battery = { vbat: 0, current: 0, mah: 0, batteryPercent: 0 };
 
-const renderer = new RadarRenderer(canvas, rgb, wedge);
-renderer.setVersion("v1.2.42");
+const renderer = new RadarRenderer(canvas, textColor, wedgeColor, accentColor);
+renderer.setVersion("v1.2.48");
 
 /* ========================================
    WEBSOCKET
