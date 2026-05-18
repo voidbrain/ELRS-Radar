@@ -134,18 +134,21 @@ export class RadarRenderer {
     this.ctx.strokeStyle = `rgba(${this.rgb},0.15)`;
     this.ctx.lineWidth = 1;
 
+    // inner circles
     for (let r = 1; r <= 3; r++) {
       this.ctx.beginPath();
       this.ctx.arc(cx, cy, (radius / 3) * r, 0, Math.PI * 2);
       this.ctx.stroke();
     }
 
+    // front facing line
     this.ctx.strokeStyle = `rgba(${this.rgb},0.6)`;
     this.ctx.beginPath();
     this.ctx.moveTo(cx, cy);
-    this.ctx.lineTo(cx, cy - radius);
+    this.ctx.lineTo(cx, cy - (radius - (Math.round(radius / 3))) );
     this.ctx.stroke();
 
+    // cross lines
     this.ctx.strokeStyle = `rgba(${this.rgb},0.15)`;
     this.ctx.beginPath();
     this.ctx.moveTo(cx - radius, cy);
@@ -166,7 +169,7 @@ export class RadarRenderer {
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
 
-    const radiusText = radius - 40;
+    const radiusText = radius - 55;
     const cardinals = [
       { t: "N", a: 0 },
       { t: "E", a: 90 },
@@ -239,6 +242,18 @@ export class RadarRenderer {
       this.ctx.lineTo(0, 0);
       this.ctx.fill();
       this.ctx.stroke();
+    }
+
+    /* =========================
+    REVERSE DEGREE NUMBERS (every 30°)
+    ========================= */
+    this.ctx.font = "10px monospace";
+    this.ctx.fillStyle = `rgba(${this.wedge},1)`;
+    for (let a = 360; a > 0; a -= 30) {
+      this.ctx.save();
+      this.ctx.rotate(-(a * Math.PI) / 180);
+      this.ctx.fillText(`-${a.toString()}`, 0, -radius + 40);
+      this.ctx.restore();
     }
 
     this.ctx.restore(); 

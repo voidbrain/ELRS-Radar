@@ -6,15 +6,11 @@ A web-based interface for interacting with ELRS radios via a Wi-Fi-enabled backp
 
 - **`bridge.js`**: Contains the core logic for bridging communication between the web app and the radio hardware.
 - **`index.html`**: The main entry point for the application.
-- ** `radar.js`**: Handles the radar/map visualization and logic.
+- **`radar.js`**: Handles the radar/map visualization and logic.
 
 ### Utils
 
-- **`map.html` & `map.js`**: Used for emulating the radio environment (simulating a radio with a backpack connected via Wi-Fi). It enables drag and drop on the drone and the person marker, a silder is dedicated to handle the person facing direction.
-- **`sw.js`**: Service Worker for offline capabilities and background processing.
-- **`emulate_elrs.js`**: Script for testing and emulating ELRS radio behavior.
-
-The remaining files (e.g., `style.css`, `manifest.json`) are part of the web app infrastructure and testing environment.
+The remaining files (e.g., `sw.js`, `style.css`, `manifest.json`) are part of the web app infrastructure and testing environment.
 
 ## Deployment on Android (via Termux)
 
@@ -52,8 +48,6 @@ To prevent Android from killing the Termux process when the screen is off:
    ```bash
    termux-wake-lock
    ```
-
-*Note: You should add this command to your `.bashrc` or `.zshrc` so it applies automatically.*
 
 ### 4. Auto-Start on Boot (termux-boot)
 
@@ -95,7 +89,3 @@ To ensure your web server starts automatically whenever the device boots:
 Once the server is running, open your Android browser (Chrome/Firefox) and navigate to:
 
 `http://localhost:8181` (or whichever port your server is using).
-
-## Testing & Emulation
-
-If you do not have a physical radio with a backpack enabled on Wi-Fi, you can use `map.html` to emulate the connection and observe the radar/bridge behavior on a pc.
