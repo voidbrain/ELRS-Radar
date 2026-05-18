@@ -221,7 +221,8 @@ export class RadarRenderer {
     if (droneTelemetry.lat != null && droneTelemetry.lng != null && isFinite(droneTelemetry.lat) && isFinite(droneTelemetry.lng)) {
       
       // Convert absolute bearing straight to radians (0° is North, 90° is East)
-      const bearingRad = (bearing * Math.PI) / 180;
+      const relative = (bearing - myPos.heading + 360) % 360;
+      const bearingRad = (relative * Math.PI) / 180;
       
       // Map directly to Canvas angles where straight UP is -Math.PI / 2
       const startAngle = -Math.PI / 2;
@@ -233,7 +234,6 @@ export class RadarRenderer {
       this.ctx.strokeStyle = `rgba(${this.wedge},0.35)`;
       this.ctx.lineWidth = 1;
 
-      // Keep drawing direction strictly clockwise (false) to prevent path flips
       this.ctx.arc(0, 0, radius, startAngle, endAngle, false);
 
       this.ctx.lineTo(0, 0);

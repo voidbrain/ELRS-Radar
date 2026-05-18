@@ -12,11 +12,10 @@ const wedge = styles.getPropertyValue("--radar-wedge").trim() || "0, 255, 255";
    STATE
 ======================================== */
 
-const HEADING_ALPHA = 0.2;
-let compassReady = false;
+const HEADING_ALPHA = 0.5;
 
 let compassEnabled = false;
-let lastDroneUpdate = 0;
+let lastDroneUpdate = 0; 
 
 let myPos = { lat: null, lng: null, heading: null };
 
@@ -29,7 +28,7 @@ let droneStatus = null;
 let battery = { vbat: 0, current: 0, mah: 0, batteryPercent: 0 };
 
 const renderer = new RadarRenderer(canvas, rgb, wedge);
-renderer.setVersion("v1.2.32");
+renderer.setVersion("v1.2.36");
 
 /* ========================================
    WEBSOCKET
@@ -100,7 +99,7 @@ function startGPS() {
     return;
   }
 
-  if (window.DeviceOrientationEvent) {
+  if (window.DeviceOrientationEvent || 'AbsoluteOrientationSensor' in window) {
     enableCompassBtn.style.display = "inline-block";
   }
 
@@ -122,7 +121,7 @@ function startGPS() {
 }
 
 /* ========================================
-   COMPASS
+   COMPASS ROUTER
 ======================================== */
 
 enableCompassBtn.addEventListener("click", startCompass);
@@ -130,58 +129,131 @@ enableCompassBtn.addEventListener("click", startCompass);
 function startCompass() {
   if (compassEnabled) return;
 
+  if ('AbsoluteOrientationSensor' in window) {
+    Promise.all([
+      navigator.permissions.query({ name: "accelerometer" }),
+      navigator.permissions.query({ name: "gyroscope" }),
+      navigator.permissions.query({ name: "magnetometer" })
+    ])
+    .then((results) => {
+      if (results.every((result) => result.state === "granted" || result.state === "prompt")) {
+        initQuaternionCompass();
+      } else {
+        fallbackToLegacyCompass();
+      }
+    })
+    .catch(() => {
+      fallbackToLegacyCompass();
+    });
+  } else {
+    fallbackToLegacyCompass();
+  }
+}
+
+function fallbackToLegacyCompass() {
   if (typeof DeviceOrientationEvent.requestPermission === "function") {
     DeviceOrientationEvent.requestPermission()
       .then((state) => {
-        if (state === "granted") initCompass();
+        if (state === "granted") initLegacyCompass();
         else renderer.showFeedback("Permission denied");
       })
       .catch(console.error);
   } else {
-    initCompass();
-  }
-}
-
-function initCompass() {
-  compassEnabled = true;
-  enableCompassBtn.style.display = "none";
-  renderer.showFeedback("Compass Active");
-
-  if ("ondeviceorientationabsolute" in window) {
-    renderer.showFeedback("absolute")
-    window.addEventListener("deviceorientationabsolute", onCompass, true);
-  } else {
-    renderer.showFeedback("not absolute")
-    window.addEventListener("deviceorientation", onCompass, true);
+    initLegacyCompass();
   }
 }
 
 /* ========================================
-   COMPASS HANDLER
+   COMPASS INITIALIZERS & HANDLERS
 ======================================== */
 
-function onCompass(e) {
-  let rawHeading = null;
+function initQuaternionCompass() {
+  try {
+    const sensor = new AbsoluteOrientationSensor({
+      frequency: 60,
+      referenceFrame: "screen"
+    });
 
-  // iOS
-  if (e.webkitCompassHeading != null && !isNaN(e.webkitCompassHeading)) {
-    rawHeading = e.webkitCompassHeading;
+    sensor.addEventListener("reading", () => {
+      const q = sensor.quaternion;
+
+      if (!q) return;
+
+      const [x, y, z, w] = q;
+
+      // yaw from quaternion
+      const siny_cosp = 2 * (w * z + x * y);
+      const cosy_cosp = 1 - 2 * (y * y + z * z);
+
+      let yaw = Math.atan2(siny_cosp, cosy_cosp);
+
+      // radians -> degrees
+      let heading = (-yaw * 180) / Math.PI;
+
+      heading = (heading + 360) % 360;
+
+      applyHeading(heading);
+    });
+
+    sensor.addEventListener("error", (e) => {
+      console.error("Sensor error:", e.error);
+
+      if (e.error.name === "NotAllowedError") {
+        fallbackToLegacyCompass();
+      }
+    });
+
+    sensor.start();
+
+    setCompassUIActive("Quaternion Absolute");
+  } catch (err) {
+    console.error(err);
+    fallbackToLegacyCompass();
   }
+}
 
-  // 2. Android handling (Magnetic North -> Converted to True North)
+function initLegacyCompass() {
+  if ("ondeviceorientationabsolute" in window) {
+    window.addEventListener("deviceorientationabsolute", onLegacyCompass, true);
+    setCompassUIActive("Legacy Absolute");
+  } else {
+    window.addEventListener("deviceorientation", onLegacyCompass, true);
+    setCompassUIActive("Legacy Relative");
+  }
+}
+
+function onLegacyCompass(e) {
+  let hardwareHeading = null;
+
+  if (e.webkitCompassHeading != null && !isNaN(e.webkitCompassHeading)) {
+    hardwareHeading = e.webkitCompassHeading;
+  }
   else if (e.alpha != null && !isNaN(e.alpha)) {
-    // Standardize Android orientation direction
-    let magneticHeading = (360 - e.alpha) % 360;
-    
-    // Add declination to convert Magnetic to True North
-    hardwareHeading = (magneticHeading + magneticDeclination + 360) % 360;
+    hardwareHeading = (360 - e.alpha) % 360;
   }
 
   if (hardwareHeading != null) {
-    // Apply your smooth alpha filtering loop safely here
-    const diff = ((hardwareHeading - myPos.heading + 540) % 360) - 180;
-    myPos.heading = (myPos.heading + diff * HEADING_ALPHA + 360) % 360;
+    applyHeading(hardwareHeading);
   }
+}
+
+function applyHeading(hardwareHeading) {
+  if (myPos.heading == null) {
+    myPos.heading = hardwareHeading;
+    return;
+  }
+
+  const diff =
+    ((hardwareHeading - myPos.heading + 540) % 360) - 180;
+
+  myPos.heading =
+    (myPos.heading + diff * HEADING_ALPHA + 360) % 360;
+}
+
+function setCompassUIActive(modeLabel) {
+  compassEnabled = true;
+  enableCompassBtn.style.display = "none";
+  renderer.showFeedback(`Compass Active (${modeLabel})`);
 }
 
 /* ========================================
@@ -212,7 +284,7 @@ setInterval(() => {
 }, 1000);
 
 function loop() {
-  renderer.render(myPos, droneTelemetry, distance, bearing);
+  renderer.render(myPos, droneTelemetry, bearing);
   requestAnimationFrame(loop);
 }
 
