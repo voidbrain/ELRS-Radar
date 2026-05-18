@@ -6,8 +6,8 @@
   --active: rgb(68, 68, 68);
 
   --radar-line:0, 0, 0;
-  --radar-wedge: 171, 28, 28;
-  --accentColor: 255, 59, 48;
+  --radar-wedge: 19, 111, 45;
+    --accentColor: 255, 59, 48;
 }
 @media (prefers-color-scheme: dark) {
   :root {
