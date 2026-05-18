@@ -205,6 +205,15 @@ export class RadarRenderer {
       ctx.restore();
     }
 
+    // *** inverted numbered circle
+    ctx.fillStyle = `rgba(${this.wedge},1)`;
+    for (let a = 0; a < 360; a += 30) {
+      ctx.save();
+      ctx.rotate(-(a * Math.PI) / 180);
+      ctx.fillText((a===0 ? "" : "-") + String(a), 0, -radius + 38);
+      ctx.restore();
+    }
+
     /* =========================
        TICKS
     ========================= */

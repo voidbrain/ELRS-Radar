@@ -28,7 +28,7 @@ let droneStatus = null;
 let battery = { vbat: 0, current: 0, mah: 0, batteryPercent: 0 };
 
 const renderer = new RadarRenderer(canvas, rgb, wedge);
-renderer.setVersion("v1.2.40");
+renderer.setVersion("v1.2.41");
 
 /* ========================================
    WEBSOCKET
