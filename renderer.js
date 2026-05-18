@@ -165,6 +165,35 @@ export class RadarRenderer {
     ctx.stroke();
 
     /* =========================
+      DRONE TARGET WEDGE OVERLAY
+    ========================= */
+    if (droneTelemetry.lat != null && droneTelemetry.lng != null && isFinite(droneTelemetry.lat) && isFinite(droneTelemetry.lng)) {
+      ctx.save();
+    ctx.translate(cx, cy);
+      // Convert absolute bearing straight to radians (0° is North, 90° is East)
+      const relative = (bearing - myPos.heading + 360) % 360;
+      const bearingRad = (relative * Math.PI) / 180;
+      
+      // Map directly to Canvas angles where straight UP is -Math.PI / 2
+      const startAngle = -Math.PI / 2;
+      const endAngle = startAngle + bearingRad;
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, 0);
+      this.ctx.fillStyle = `rgba(${this.wedge},0.18)`;
+      this.ctx.strokeStyle = `rgba(${this.wedge},0.35)`;
+      this.ctx.lineWidth = 1;
+      const counterclockwise = relative > 180
+
+      this.ctx.arc(0, 0, radius, startAngle, endAngle, counterclockwise);
+
+      this.ctx.lineTo(0, 0);
+      this.ctx.fill();
+      this.ctx.stroke();
+      ctx.restore();
+    }
+
+    /* =========================
        ROTATE WORLD BY HEADING
     ========================= */
 
@@ -236,64 +265,6 @@ export class RadarRenderer {
       ctx.moveTo(Math.cos(rad) * inner, Math.sin(rad) * inner);
       ctx.lineTo(Math.cos(rad) * outer, Math.sin(rad) * outer);
       ctx.stroke();
-    }
-
-    if (
-      droneTelemetry.lat != null &&
-      droneTelemetry.lng != null &&
-      Number.isFinite(bearing)
-    ) {
-      // bearing relative to phone
-      const relative =
-        ((bearing - myPos.heading + 540) % 360) - 180;
-
-      const angle = (relative * Math.PI) / 180;
-      const ORIGIN = -Math.PI / 2;
-
-      // fixed screen-top ray
-      const start = -Math.PI / 2;
-
-      // drone direction ray
-      const end = start + angle;
-      console.log(start, end, bearing)
-
-      // shortest arc direction
-      const anticlockwise = angle < 0;
-
-      ctx.save();
-      ctx.translate(cx, cy);
-
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-
-      // side 1 = ALWAYS phone top
-      ctx.lineTo(
-        Math.cos(ORIGIN) * radius,
-        Math.sin(ORIGIN) * radius
-      );
-
-      // arc to drone
-      ctx.arc(
-        0,
-        0,
-        radius,
-        start,
-        end,
-        anticlockwise
-      );
-
-      // close wedge
-      ctx.lineTo(0, 0);
-
-      ctx.closePath();
-
-      ctx.fillStyle = `rgba(${this.wedge},0.18)`;
-      ctx.strokeStyle = `rgba(${this.wedge},0.35)`;
-
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.restore();
     }
 
     ctx.restore();

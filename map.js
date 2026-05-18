@@ -148,12 +148,11 @@ function appendDebugRow() {
 }
 
 function sendBridgeUpdate() {
+  if (bridge.readyState !== WebSocket.OPEN) return;
   const me = meMarker.getLatLng();
   const drone = droneMarker.getLatLng();
-
-  bridge.send(
-    JSON.stringify({
-      type: "gps",
+  const obj = {
+      type: "debug-pos",
       controller: {
         lat: me.lat,
         lng: me.lng,
@@ -163,6 +162,12 @@ function sendBridgeUpdate() {
         lat: drone.lat,
         lng: drone.lng,
       },
-    })
+    };
+  bridge.send(
+    JSON.stringify(obj)
   );
+
+  bridge.onopen = () => {
+    console.log("WS connected");
+  };
 }

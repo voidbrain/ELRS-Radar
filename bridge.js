@@ -35,7 +35,7 @@ const MIME = {
 let lastFlightFlags = null;
 
 const state = {
-  me: null,
+  controller: null,
   drone: null,
   timestamp: 0,
 };
@@ -66,10 +66,18 @@ wss.on("connection", (ws) => {
     try {
       const msg = JSON.parse(raw.toString());
       if (msg.type === "debug-pos") {
-        if (msg.me) state.me = msg.me;
+        console.log(msg)
+        if (msg.controller) state.controller = msg.controller;
         if (msg.drone) state.drone = msg.drone;
         state.timestamp = Date.now();
-        broadcast({ type: "state", ...state });
+        const obj = {
+          protocol: "gps",
+          controller: state.controller,
+          drone: state.drone,
+          altitude: state.drone.altitude >= 0 ? state.drone.altitude : 0,
+          sats: state.drone.sats || 0
+        };
+        broadcast(obj);
       }
     } catch (e) {
       console.warn("Invalid WS JSON");
@@ -135,7 +143,6 @@ function decodeMSPGPS(msg) {
       if (isValidGPS(lat, lng)) {
         return {
           protocol: "gps",
-          type: "drone",
           lat,
           lng,
           altitude: altitude >= 0 ? altitude : 0,
@@ -152,7 +159,6 @@ function decodeMSPGPS(msg) {
 
       return {
         protocol: "metrics",
-        type: "drone",
         rxRSSI,
         txRSSI,
         linkQuality
@@ -213,7 +219,6 @@ if (payloadLen >= 10 && msg.readUInt8(payloadStart + 2) === 0x1E) {
 
   return {
     protocol: "status",
-    type: "drone",
     isArmed,
     flightMode: modeText,
     rawStatus: `${isArmed ? "ARMED" : "DISARMED"} [${modeText}]`
@@ -231,7 +236,6 @@ if (payloadLen >= 10 && msg.readUInt8(payloadStart + 2) === 0x1E) {
 
       return {
         protocol: "battery",
-        type: "drone",
         vbat: rawVoltage / 10, // CRSF sends battery data scaled in 0.1V units
         current: rawCurrent / 10, // scaled in 0.1A units
         mah: capacity,

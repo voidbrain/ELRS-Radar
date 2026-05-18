@@ -44,42 +44,46 @@ ws.binaryType = "arraybuffer";
 ws.onmessage = (e) => {
   try {
     const data = JSON.parse(e.data);
-
-    if (data.type === "gps") {
-      if (data.data.type === "controller") {
-        myPos.lat = data.data.lat;
-        myPos.lng = data.data.lng;
+    console.log(data)
+    if (data.protocol === "gps") {
+      if (typeof data.controller.lat === "number") {
+        myPos.lat = data.controller.lat;
+        myPos.lng = data.controller.lng;
       }
 
-      if (data.data.type === "drone") {
-        droneTelemetry.lat = data.data.lat;
-        droneTelemetry.lng = data.data.lng;
-        droneTelemetry.altitude = data.data.altitude ?? droneTelemetry.altitude;
-        droneTelemetry.sats = data.data.sats ?? droneTelemetry.sats;
+      if (typeof data.controller.heading === "number") {
+          myPos.heading = data.controller.heading;
+        }
+
+      if (typeof data.drone.lat === "number") {
+        droneTelemetry.lat = data.drone.lat;
+        droneTelemetry.lng = data.drone.lng;
+        droneTelemetry.altitude = data.drone.altitude ?? droneTelemetry.altitude;
+        droneTelemetry.sats = data.drone.sats ?? droneTelemetry.sats;
       }
 
       updateCalculations();
       return;
     }
 
-    if (data.type === "metrics") {
+    if (data.protocol === "metrics") {
       metrics = {
-        rxRSSI: data.data.rxRSSI ?? 0,
-        txRSSI: data.data.txRSSI ?? 0,
-        linkQuality: data.data.linkQuality ?? 0
+        rxRSSI: data.rxRSSI ?? 0,
+        txRSSI: data.txRSSI ?? 0,
+        linkQuality: data.linkQuality ?? 0
       };
     }
 
-    if (data.type === "status") {
-      droneStatus = data.data.flightMode ?? "";
+    if (data.protocol === "status") {
+      droneStatus = data.flightMode ?? "";
     }
 
-    if (data.type === "battery") {
+    if (data.protocol === "battery") {
       battery = {
-        vbat: data.data.vbat ?? 0,
-        current: data.data.current ?? 0,
-        mah: data.data.mah ?? 0,
-        batteryPercent: data.data.batteryPercent ?? 0
+        vbat: data.vbat ?? 0,
+        current: data.current ?? 0,
+        mah: data.mah ?? 0,
+        batteryPercent: data.batteryPercent ?? 0
       };
     }
 
