@@ -39,7 +39,7 @@ const INIT_SAMPLE_SIZE = 5;
 let headingLocked = false;
 
 const renderer = new RadarRenderer(canvas, textColor, wedgeColor, accentColor);
-renderer.setVersion("v1.2.51");
+renderer.setVersion("v1.2.52");
 
 /* ========================================
    WEBSOCKET
@@ -113,9 +113,11 @@ function startGPS() {
     return;
   }
 
-  if (window.DeviceOrientationEvent || 'AbsoluteOrientationSensor' in window) {
-    enableCompassBtn.style.display = "inline-block";
-  }
+  const hasCompassSupported =
+  ("DeviceOrientationEvent" in window) ||
+  ("AbsoluteOrientationSensor" in window);
+
+  enableCompassBtn.classList.toggle("hidden", hasCompassSupported);
 
   navigator.geolocation.watchPosition(
     (pos) => {
@@ -142,7 +144,7 @@ enableCompassBtn.addEventListener("click", startCompass);
 
 function startCompass() {
   if (compassEnabled) return;
-
+  enableCompassBtn.classList.add("hidden");
   compassStartTime = Date.now();
 
   if ('AbsoluteOrientationSensor' in window) {
@@ -264,19 +266,19 @@ function onLegacyCompass(e) {
 
 function applyHeading(hardwareHeading) {
 
-  // =========================
-  // GRACE PERIOD (DO NOTHING)
-  // =========================
-  if (!headingLocked) {
-    if (Date.now() - compassStartTime <= COMPASS_GRACE_MS) {
-      return;
-    }
+  // 1. HARD GRACE PERIOD (do nothing at all)
+  if (Date.now() - compassStartTime < COMPASS_GRACE_MS) {
+    return;
+  }
 
-    // after grace ends → start collecting samples
+  // 2. INITIAL LOCK PHASE (after grace)
+  if (!headingLocked) {
+
     initSamples.push(hardwareHeading);
 
     if (initSamples.length < INIT_SAMPLE_SIZE) return;
 
+    // reject unstable rotation before locking
     let maxDelta = 0;
 
     for (let i = 1; i < initSamples.length; i++) {
@@ -287,14 +289,15 @@ function applyHeading(hardwareHeading) {
     }
 
     if (maxDelta > 8) {
-      initSamples.shift();
+      initSamples.shift(); // keep waiting for stability
       return;
     }
 
+    // compute stable heading lock
     let sx = 0, sy = 0;
 
     for (const a of initSamples) {
-      const r = (a * Math.PI) / 180;
+      const r = a * Math.PI / 180;
       sx += Math.cos(r);
       sy += Math.sin(r);
     }
@@ -308,9 +311,7 @@ function applyHeading(hardwareHeading) {
     return;
   }
 
-  // =========================
-  // NORMAL SMOOTHING
-  // =========================
+  // 3. NORMAL SMOOTHING
   const diff =
     ((hardwareHeading - myPos.heading + 540) % 360) - 180;
 
