@@ -178,7 +178,7 @@ function initQuaternionCompass() {
   try {
     const sensor = new AbsoluteOrientationSensor({
       frequency: 60,
-      referenceFrame: "screen"
+      referenceFrame: "device"
     });
 
     sensor.addEventListener("reading", () => {
@@ -187,7 +187,6 @@ function initQuaternionCompass() {
       if (!q) return;
 
       const [x, y, z, w] = q;
-      console.log(q)
 
       // yaw from quaternion
       const siny_cosp = 2 * (w * z + x * y);
@@ -198,7 +197,16 @@ function initQuaternionCompass() {
       // radians -> degrees
       let heading = (-yaw * 180) / Math.PI;
 
+      // normalize
       heading = (heading + 360) % 360;
+
+      // compensate current screen rotation
+      const screenAngle =
+        screen.orientation?.angle ??
+        window.orientation ??
+        0;
+
+      heading = (heading + screenAngle) % 360;
 
       applyHeading(heading);
     });
