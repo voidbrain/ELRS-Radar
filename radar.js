@@ -31,8 +31,15 @@ let metrics = { rxRSSI: 0, txRSSI: 0, linkQuality: 0 };
 let droneStatus = null;
 let battery = { vbat: 0, current: 0, mah: 0, batteryPercent: 0 };
 
+let compassStartTime = null;
+const COMPASS_GRACE_MS = 2000;
+
+let initSamples = [];
+const INIT_SAMPLE_SIZE = 5;
+let headingLocked = false;
+
 const renderer = new RadarRenderer(canvas, textColor, wedgeColor, accentColor);
-renderer.setVersion("v1.2.50");
+renderer.setVersion("v1.2.51");
 
 /* ========================================
    WEBSOCKET
@@ -135,6 +142,8 @@ enableCompassBtn.addEventListener("click", startCompass);
 
 function startCompass() {
   if (compassEnabled) return;
+
+  compassStartTime = Date.now();
 
   if ('AbsoluteOrientationSensor' in window) {
     Promise.all([
@@ -254,11 +263,54 @@ function onLegacyCompass(e) {
 }
 
 function applyHeading(hardwareHeading) {
-  if (myPos.heading == null) {
-    myPos.heading = hardwareHeading;
+
+  // =========================
+  // GRACE PERIOD (DO NOTHING)
+  // =========================
+  if (!headingLocked) {
+    if (Date.now() - compassStartTime <= COMPASS_GRACE_MS) {
+      return;
+    }
+
+    // after grace ends → start collecting samples
+    initSamples.push(hardwareHeading);
+
+    if (initSamples.length < INIT_SAMPLE_SIZE) return;
+
+    let maxDelta = 0;
+
+    for (let i = 1; i < initSamples.length; i++) {
+      const d = Math.abs(
+        ((initSamples[i] - initSamples[i - 1] + 540) % 360) - 180
+      );
+      maxDelta = Math.max(maxDelta, d);
+    }
+
+    if (maxDelta > 8) {
+      initSamples.shift();
+      return;
+    }
+
+    let sx = 0, sy = 0;
+
+    for (const a of initSamples) {
+      const r = (a * Math.PI) / 180;
+      sx += Math.cos(r);
+      sy += Math.sin(r);
+    }
+
+    myPos.heading =
+      (Math.atan2(sy, sx) * 180 / Math.PI + 360) % 360;
+
+    headingLocked = true;
+    initSamples = [];
+
     return;
   }
 
+  // =========================
+  // NORMAL SMOOTHING
+  // =========================
   const diff =
     ((hardwareHeading - myPos.heading + 540) % 360) - 180;
 
