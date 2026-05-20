@@ -75,7 +75,11 @@ To ensure your web server starts automatically whenever the device boots:
    termux-wake-lock
    cd ~/storage/downloads/elrs/
    pkill -f "node bridge.js"
-   nohup node bridge.js > ~/elrs.log 2>&1 &
+   while true
+   do
+      node bridge.js
+      sleep 5
+   done
 
    ```
 
