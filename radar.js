@@ -32,7 +32,7 @@ let droneStatus = null;
 let battery = { vbat: 0, current: 0, mah: 0, batteryPercent: 0 };
 
 const renderer = new RadarRenderer(canvas, textColor, wedgeColor, accentColor);
-renderer.setVersion("v1.2.48");
+renderer.setVersion("v1.2.49");
 
 /* ========================================
    WEBSOCKET
@@ -44,7 +44,6 @@ ws.binaryType = "arraybuffer";
 ws.onmessage = (e) => {
   try {
     const data = JSON.parse(e.data);
-    console.log(data)
     if (data.protocol === "gps") {
       if (typeof data.controller.lat === "number") {
         myPos.lat = data.controller.lat;
