@@ -169,28 +169,36 @@ export class RadarRenderer {
     ========================= */
     if (droneTelemetry.lat != null && droneTelemetry.lng != null && isFinite(droneTelemetry.lat) && isFinite(droneTelemetry.lng)) {
       ctx.save();
-    ctx.translate(cx, cy);
-      // Convert absolute bearing straight to radians (0° is North, 90° is East)
-      const relative = (bearing - myPos.heading + 360) % 360;
-      const bearingRad = (relative * Math.PI) / 180;
-      
-      // Map directly to Canvas angles where straight UP is -Math.PI / 2
-      const startAngle = -Math.PI / 2;
-      const endAngle = startAngle + bearingRad;
+ctx.translate(cx, cy);
 
-      this.ctx.beginPath();
-      this.ctx.moveTo(0, 0);
-      this.ctx.fillStyle = `rgba(${this.wedge},0.18)`;
-      this.ctx.strokeStyle = `rgba(${this.wedge},0.35)`;
-      this.ctx.lineWidth = 1;
-      const counterclockwise = relative > 180
+const relative = ((bearing - myPos.heading + 360) % 360) * Math.PI / 180;
 
-      this.ctx.arc(0, 0, radius, startAngle, endAngle, counterclockwise);
+// phone-forward direction in rotated canvas
+const startAngle = -Math.PI / 2;
 
-      this.ctx.lineTo(0, 0);
-      this.ctx.fill();
-      this.ctx.stroke();
-      ctx.restore();
+// normalize difference
+let delta = relative - startAngle;
+delta = (delta + Math.PI * 2) % (Math.PI * 2);
+
+// shortest arc direction
+const counterclockwise = delta > Math.PI;
+
+// end angle
+const endAngle = startAngle + (counterclockwise ? delta - Math.PI * 2 : delta);
+
+this.ctx.beginPath();
+this.ctx.moveTo(0, 0);
+this.ctx.fillStyle = `rgba(${this.wedge},0.18)`;
+this.ctx.strokeStyle = `rgba(${this.wedge},0.35)`;
+this.ctx.lineWidth = 1;
+
+this.ctx.arc(0, 0, radius, startAngle, endAngle, counterclockwise);
+
+this.ctx.lineTo(0, 0);
+this.ctx.fill();
+this.ctx.stroke();
+
+ctx.restore();
     }
 
     /* =========================

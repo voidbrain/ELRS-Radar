@@ -32,7 +32,7 @@ let droneStatus = null;
 let battery = { vbat: 0, current: 0, mah: 0, batteryPercent: 0 };
 
 const renderer = new RadarRenderer(canvas, textColor, wedgeColor, accentColor);
-renderer.setVersion("v1.2.49");
+renderer.setVersion("v1.2.50");
 
 /* ========================================
    WEBSOCKET
@@ -187,6 +187,7 @@ function initQuaternionCompass() {
       if (!q) return;
 
       const [x, y, z, w] = q;
+      console.log(q)
 
       // yaw from quaternion
       const siny_cosp = 2 * (w * z + x * y);
