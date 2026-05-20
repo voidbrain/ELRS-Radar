@@ -69,13 +69,18 @@ To ensure your web server starts automatically whenever the device boots:
 4. Add the following content to the script (adjust the path to your project):
 
    ```bash
+
    #!/data/data/com.termux/files/usr/bin/sh
-   # Navigate to your project directory
-   cd /path/to/your/Projects/ELRS/Android/
-   
-   # Start a simple HTTP server (using 'npx serve' or similar)
-   # Replace 'serve' with your preferred server command
-   npx serve . &
+   sleep 15
+   termux-wake-lock
+   cd ~/storage/downloads/elrs/
+   pkill -f "node bridge.js"
+   while true
+   do
+      node bridge.js
+      sleep 5
+   done
+
    ```
 
 5. Make the script executable:

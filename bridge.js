@@ -66,7 +66,6 @@ wss.on("connection", (ws) => {
     try {
       const msg = JSON.parse(raw.toString());
       if (msg.type === "debug-pos") {
-        console.log(msg)
         if (msg.controller) state.controller = msg.controller;
         if (msg.drone) state.drone = msg.drone;
         state.timestamp = Date.now();
