@@ -1,7 +1,10 @@
 import { hav, bear } from "./math.js";
 import { RadarRenderer } from "./renderer.js";
+import { MeterRenderer } from "./meters.js";
 
-const canvas = document.getElementById("radarCanvas");
+const radarCanvas = document.getElementById("radarCanvas");
+const meterCanvas = document.getElementById("meterCanvas");
+
 const enableCompassBtn = document.getElementById("enableCompass");
 const showMoreBtn = document.getElementById("showMore");
 const showLessBtn = document.getElementById("showLess");
@@ -31,7 +34,12 @@ let metrics = { rxRSSI: 0, txRSSI: 0, linkQuality: 0 };
 let droneStatus = null;
 let battery = { vbat: 0, current: 0, mah: 0, batteryPercent: 0 };
 
-const renderer = new RadarRenderer(canvas, textColor, wedgeColor, accentColor);
+const renderer = new RadarRenderer(radarCanvas, textColor, wedgeColor, accentColor);
+const meterRenderer = new MeterRenderer(
+  meterCanvas,
+  textColor,
+  accentColor
+);
 renderer.setVersion("v1.2.49");
 
 /* ========================================
@@ -306,6 +314,10 @@ setInterval(() => {
 
 function loop() {
   renderer.render(myPos, droneTelemetry, bearing);
+  meterRenderer.render({
+    rx: metrics.rxRSSI,
+    tx: metrics.txRSSI
+  });
   requestAnimationFrame(loop);
 }
 
