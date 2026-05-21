@@ -1,10 +1,18 @@
 export class MeterRenderer {
-  constructor(canvas, rgb, accentColor) {
+  constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
 
-    this.rgb = rgb.trim();
-    this.accent = accentColor.trim();
+    /*
+      PERSISTENT PEAKS
+    */
+
+    this.history = {
+      rxMax: -120,
+      rxMin: 0,
+      txMax: -120,
+      txMin: 0
+    };
   }
 
   render({ rx = -120, tx = -120 }) {
@@ -13,71 +21,109 @@ export class MeterRenderer {
     const w = this.canvas.width;
     const h = this.canvas.height;
 
-    ctx.clearRect(0, 0, w, h);
+    /*
+      PURE B/W
+    */
+
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, w, h);
+
+    /*
+      UPDATE HISTORY
+    */
+
+    this.history.rxMax = Math.max(this.history.rxMax, rx);
+    this.history.rxMin = Math.min(this.history.rxMin, rx);
+
+    this.history.txMax = Math.max(this.history.txMax, tx);
+    this.history.txMin = Math.min(this.history.txMin, tx);
 
     this.drawMeter({
       x: w * 0.12,
-      y: h * 0.2,
-      width: 26,
-      height: h * 0.55,
+      y: h * 0.16,
+      width: 30,
+      height: h * 0.62,
       value: rx,
-      label: "RX"
+      label: "RX",
+      maxSeen: this.history.rxMax,
+      minSeen: this.history.rxMin
     });
 
     this.drawMeter({
-      x: w * 0.88 - 26,
-      y: h * 0.2,
-      width: 26,
-      height: h * 0.55,
+      x: w * 0.88 - 30,
+      y: h * 0.16,
+      width: 30,
+      height: h * 0.62,
       value: tx,
-      label: "TX"
+      label: "TX",
+      maxSeen: this.history.txMax,
+      minSeen: this.history.txMin
     });
   }
 
-  drawMeter({ x, y, width, height, value, label }) {
+  drawMeter({
+    x,
+    y,
+    width,
+    height,
+    value,
+    label,
+    maxSeen,
+    minSeen
+  }) {
     const ctx = this.ctx;
 
     const min = -120;
     const max = 0;
 
-    const normalized = Math.max(
-      0,
-      Math.min(1, (value - min) / (max - min))
-    );
+    const clamp = (v) =>
+      Math.max(0, Math.min(1, (v - min) / (max - min)));
+
+    const normalized = clamp(value);
 
     /*
-      OUTER FRAME
+      FRAME
     */
 
-    ctx.strokeStyle = `rgba(${this.rgb},0.35)`;
+    ctx.strokeStyle = "#fff";
     ctx.lineWidth = 2;
 
     ctx.strokeRect(x, y, width, height);
 
     /*
-      SCALE LINES
+      SCALE
     */
 
     for (let db = -120; db <= 0; db += 10) {
-      const t = (db - min) / (max - min);
+      const t = clamp(db);
 
       const py = y + height - t * height;
 
       ctx.beginPath();
-      ctx.moveTo(x + width, py);
-      ctx.lineTo(x + width + 8, py);
 
-      ctx.strokeStyle = `rgba(${this.rgb},0.45)`;
+      ctx.moveTo(x + width, py);
+
+      ctx.lineTo(
+        x + width + (db % 20 === 0 ? 12 : 6),
+        py
+      );
+
+      ctx.strokeStyle = "#666";
       ctx.lineWidth = db % 20 === 0 ? 2 : 1;
+
       ctx.stroke();
 
       if (db % 20 === 0) {
-        ctx.fillStyle = `rgba(${this.rgb},0.8)`;
+        ctx.fillStyle = "#aaa";
         ctx.font = "10px monospace";
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
 
-        ctx.fillText(String(db), x + width + 12, py);
+        ctx.fillText(
+          String(db),
+          x + width + 16,
+          py
+        );
       }
     }
 
@@ -85,52 +131,129 @@ export class MeterRenderer {
       FILLED BAR
     */
 
-    const filledHeight = height * normalized;
-
-    ctx.fillStyle = `rgba(${this.accent},0.85)`;
-
-    ctx.fillRect(
-      x + 3,
-      y + height - filledHeight + 3,
-      width - 6,
-      filledHeight - 6
+    const filledHeight = Math.max(
+      0,
+      height * normalized
     );
 
     /*
-      PEAK LINE
+      WHITE BODY
     */
 
-    const peakY = y + height - filledHeight;
+    ctx.fillStyle = "#fff";
+
+    ctx.fillRect(
+      x + 4,
+      y + height - filledHeight + 4,
+      width - 8,
+      Math.max(0, filledHeight - 8)
+    );
+
+    /*
+      CURRENT VALUE LINE
+    */
+
+    const currentY = y + height - filledHeight;
 
     ctx.beginPath();
-    ctx.moveTo(x - 2, peakY);
-    ctx.lineTo(x + width + 2, peakY);
+    ctx.moveTo(x - 3, currentY);
+    ctx.lineTo(x + width + 3, currentY);
 
-    ctx.strokeStyle = `rgba(${this.rgb},1)`;
+    ctx.strokeStyle = "#fff";
     ctx.lineWidth = 2;
+
     ctx.stroke();
+
+    /*
+      MAX HOLD MARKER
+      brightest line
+    */
+
+    const maxY =
+      y + height - clamp(maxSeen) * height;
+
+    ctx.beginPath();
+    ctx.moveTo(x - 5, maxY);
+    ctx.lineTo(x + width + 5, maxY);
+
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1;
+
+    ctx.stroke();
+
+    /*
+      MIN HOLD MARKER
+      dim dashed line
+    */
+
+    const minY =
+      y + height - clamp(minSeen) * height;
+
+    ctx.setLineDash([4, 4]);
+
+    ctx.beginPath();
+    ctx.moveTo(x - 5, minY);
+    ctx.lineTo(x + width + 5, minY);
+
+    ctx.strokeStyle = "#777";
+    ctx.lineWidth = 1;
+
+    ctx.stroke();
+
+    ctx.setLineDash([]);
 
     /*
       LABEL
     */
 
-    ctx.fillStyle = `rgba(${this.accent},1)`;
+    ctx.fillStyle = "#fff";
     ctx.font = "bold 14px monospace";
     ctx.textAlign = "center";
 
-    ctx.fillText(label, x + width / 2, y - 12);
+    ctx.fillText(
+      label,
+      x + width / 2,
+      y - 14
+    );
 
     /*
-      VALUE
+      LIVE VALUE
     */
 
-    ctx.fillStyle = `rgba(${this.rgb},1)`;
-    ctx.font = "bold 12px monospace";
+    ctx.font = "bold 13px monospace";
 
     ctx.fillText(
       `${Math.round(value)}`,
       x + width / 2,
-      y + height + 18
+      y + height + 20
     );
+
+    /*
+      PEAK / FLOOR READOUTS
+    */
+
+    ctx.fillStyle = "#888";
+    ctx.font = "10px monospace";
+
+    ctx.fillText(
+      `H ${Math.round(maxSeen)}`,
+      x + width / 2,
+      y + height + 36
+    );
+
+    ctx.fillText(
+      `L ${Math.round(minSeen)}`,
+      x + width / 2,
+      y + height + 50
+    );
+  }
+
+  resetHistory() {
+    this.history = {
+      rxMax: -120,
+      rxMin: 0,
+      txMax: -120,
+      txMin: 0
+    };
   }
 }
