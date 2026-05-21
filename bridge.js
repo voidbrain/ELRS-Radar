@@ -34,11 +34,6 @@ const MIME = {
 
 let lastFlightFlags = null;
 
-const state = {
-  controller: null,
-  drone: null,
-  timestamp: 0,
-};
 
 /* ========================================
    WS SERVER
@@ -60,27 +55,25 @@ wss.on("connection", (ws) => {
   clients.add(ws);
   console.log("WS client connected. Total clients:", clients.size);
 
-  ws.send(JSON.stringify({ type: "state", ...state }));
+  // hello msg
+  // ws.send(JSON.stringify({ type: "state", ...state }));
 
   ws.on("message", (raw) => {
     try {
       const msg = JSON.parse(raw.toString());
-      if (msg.type === "debug-pos") {
-        console.log(msg)
-        if (msg.controller) state.controller = msg.controller;
-        if (msg.drone) state.drone = msg.drone;
-        state.timestamp = Date.now();
+      if (msg.type === "gps") {
         const obj = {
-          protocol: "gps",
-          controller: state.controller,
-          drone: state.drone,
-          altitude: state.drone.altitude >= 0 ? state.drone.altitude : 0,
-          sats: state.drone.sats || 0
+          type: "gps",
+          controller: msg.data.controller,
+          lat: msg.data.lat,
+          lng: msg.data.lng,
+          altitude: msg.data.altitude >= 0 ? msg.data.altitude : 0,
+          sats: msg.data.sats || 0
         };
         broadcast(obj);
       }
     } catch (e) {
-      console.warn("Invalid WS JSON");
+      console.warn(e, "Invalid WS JSON");
     }
   });
 

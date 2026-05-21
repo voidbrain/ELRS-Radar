@@ -44,45 +44,46 @@ ws.binaryType = "arraybuffer";
 ws.onmessage = (e) => {
   try {
     const data = JSON.parse(e.data);
-    if (data.protocol === "gps") {
-      if (typeof data.controller.lat === "number") {
+    if (data.type === "gps") {
+      if (typeof data.controller?.lat === "number") {
+        
         myPos.lat = data.controller.lat;
         myPos.lng = data.controller.lng;
       }
 
-      if (typeof data.controller.heading === "number") {
+      if (typeof data.controller?.heading === "number") {
           myPos.heading = data.controller.heading;
         }
 
-      if (typeof data.drone.lat === "number") {
-        droneTelemetry.lat = data.drone.lat;
-        droneTelemetry.lng = data.drone.lng;
-        droneTelemetry.altitude = data.drone.altitude ?? droneTelemetry.altitude;
-        droneTelemetry.sats = data.drone.sats ?? droneTelemetry.sats;
+      if (typeof data.lat === "number") {
+        droneTelemetry.lat = data.lat;
+        droneTelemetry.lng = data.lng;
+        droneTelemetry.altitude = data.altitude ?? droneTelemetry.altitude;
+        droneTelemetry.sats = data.sats ?? droneTelemetry.sats;
       }
 
       updateCalculations();
       return;
     }
 
-    if (data.protocol === "metrics") {
+    if (data.type === "metrics") {
       metrics = {
-        rxRSSI: data.rxRSSI ?? 0,
-        txRSSI: data.txRSSI ?? 0,
-        linkQuality: data.linkQuality ?? 0
+        rxRSSI: data.data.rxRSSI ?? 0,
+        txRSSI: data.data.txRSSI ?? 0,
+        linkQuality: data.data.linkQuality ?? 0
       };
     }
 
-    if (data.protocol === "status") {
-      droneStatus = data.flightMode ?? "";
+    if (data.type === "status") {
+      // droneStatus = data.flightMode ?? "";
     }
 
-    if (data.protocol === "battery") {
+    if (data.type === "battery") {
       battery = {
-        vbat: data.vbat ?? 0,
-        current: data.current ?? 0,
-        mah: data.mah ?? 0,
-        batteryPercent: data.batteryPercent ?? 0
+        vbat: data.data.vbat ?? 0,
+        current: data.data.current ?? 0,
+        mah: data.data.mah ?? 0,
+        batteryPercent: data.data.batteryPercent ?? 0
       };
     }
 

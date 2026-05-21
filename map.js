@@ -152,16 +152,19 @@ function sendBridgeUpdate() {
   const me = meMarker.getLatLng();
   const drone = droneMarker.getLatLng();
   const obj = {
-      type: "debug-pos",
-      controller: {
-        lat: me.lat,
-        lng: me.lng,
-        heading: myHeading,
-      },
-      drone: {
+      type: "gps",
+      data:{
+        protocol: "gps",
+        controller: {
+          lat: me.lat,
+          lng: me.lng,
+          heading: myHeading,
+        },
         lat: drone.lat,
         lng: drone.lng,
-      },
+        altitude: 1,
+        sats: 10
+      }
     };
   bridge.send(
     JSON.stringify(obj)

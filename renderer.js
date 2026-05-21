@@ -130,7 +130,7 @@ export class RadarRenderer {
       this.dom.bearing.innerText = `${dir} ${Math.round(Math.abs(diff))}°`;
       this.dom.dist.innerText = `${Math.round(distance)} m`;
     } else {
-      this.dom.dist.innerText = "No Drone";
+      this.dom.dist.innerText = "--";
       this.dom.bearing.innerText = "--";
     }
   }
