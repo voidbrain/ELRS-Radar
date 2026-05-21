@@ -22,13 +22,6 @@ export class MeterRenderer {
     const h = this.canvas.height;
 
     /*
-      PURE B/W
-    */
-
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, w, h);
-
-    /*
       UPDATE HISTORY
     */
 
@@ -39,10 +32,10 @@ export class MeterRenderer {
     this.history.txMin = Math.min(this.history.txMin, tx);
 
     this.drawMeter({
-      x: w * 0.12,
-      y: h * 0.16,
+      x: 10,
+      y: 20,
       width: 30,
-      height: h * 0.62,
+      height: 50,
       value: rx,
       label: "RX",
       maxSeen: this.history.rxMax,
@@ -50,10 +43,10 @@ export class MeterRenderer {
     });
 
     this.drawMeter({
-      x: w * 0.88 - 30,
-      y: h * 0.16,
+      x: 80,
+      y: 20,
       width: 30,
-      height: h * 0.62,
+      height: 50,
       value: tx,
       label: "TX",
       maxSeen: this.history.txMax,
