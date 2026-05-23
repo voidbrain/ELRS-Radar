@@ -37,7 +37,7 @@ let battery = { vbat: 0, current: 0, mah: 0, batteryPercent: 0 };
 const renderer = new RadarRenderer(radarCanvas, textColor, wedgeColor, accentColor);
 const meterRenderer = new MeterRenderer(
   meterCanvas,
-  textColor,
+  textColor, wedgeColor,
   accentColor
 );
 renderer.setVersion("v1.2.49");
@@ -53,6 +53,7 @@ ws.onmessage = (e) => {
   try {
     const data = JSON.parse(e.data);
     if (data.type === "gps") {
+      console.log(data)
       if (typeof data.controller?.lat === "number") {
         
         myPos.lat = data.controller.lat;
@@ -63,11 +64,11 @@ ws.onmessage = (e) => {
           myPos.heading = data.controller.heading;
         }
 
-      if (typeof data.lat === "number") {
-        droneTelemetry.lat = data.lat;
-        droneTelemetry.lng = data.lng;
-        droneTelemetry.altitude = data.altitude ?? droneTelemetry.altitude;
-        droneTelemetry.sats = data.sats ?? droneTelemetry.sats;
+      if (typeof data.data.lat === "number") {
+        droneTelemetry.lat = data.data.lat;
+        droneTelemetry.lng = data.data.lng;
+        droneTelemetry.altitude = data.data.altitude ?? droneTelemetry.altitude;
+        droneTelemetry.sats = data.data.sats ?? droneTelemetry.sats;
       }
 
       updateCalculations();
@@ -315,8 +316,7 @@ setInterval(() => {
 function loop() {
   renderer.render(myPos, droneTelemetry, bearing);
   meterRenderer.render({
-    rx: metrics.rxRSSI,
-    tx: metrics.txRSSI
+    rx: metrics.rxRSSI
   });
   requestAnimationFrame(loop);
 }
